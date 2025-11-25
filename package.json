@@ -1,0 +1,12 @@
+{
+	"name": "sd-api",
+	"license": "UNLICENSED",
+	"private": true,
+	"scripts": {
+		"server": "pm2 delete init && pm2 start init.js --watch --ignore-watch='.git/*' && pm2 logs"
+	},
+	"dependencies": {
+		"express": "~4.17.3",
+		"mongodb": "~4.4.0"
+	}
+}
