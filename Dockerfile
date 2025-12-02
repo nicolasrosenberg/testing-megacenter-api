@@ -1,7 +1,7 @@
 # cell
 
 # OS
-FROM node:16-alpine
+FROM node:24-alpine
 
 # allow node user to open port 80
 RUN apk add libcap && setcap 'cap_net_bind_service=+ep' /usr/local/bin/node

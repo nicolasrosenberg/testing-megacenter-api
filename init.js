@@ -1,3 +1,4 @@
+
 /**
  * Init
  */
@@ -19,8 +20,6 @@ let server
  * Init
  */
 async function init() {
-
-	const DB = await require('./api/db')(process.env.MONGO_HOST)
 
 	// start server
 	server = await app.listen(80)
@@ -54,6 +53,8 @@ async function init() {
 
 		// for preflight requests
 		if (req.method.match(/OPTIONS/)) return res.sendStatus(200)
+		
+		console.log(`Init -> ${req.path} ${req.originalUrl}`)
 
 		// validate API_KEY
 		if (process.env.API_KEY && process.env.API_KEY != req.get("X-Api-Key")) return res.status(401).json({ status: "error", msg: "unauthorized" })
@@ -67,9 +68,21 @@ async function init() {
 	app.get('*/health', (req, res) => res.sendStatus(200))
 
 	/**
-	 * APP example
+	 * SiteLink API (modular)
+	 * Routes: /api/sitelink/locations, /units, /reservations, /movein, /insurance, /payments, /esign, /tenants
 	 */
-	app.use('*/robots', require('./api/robots')(DB))
+	app.use('*/sitelink', require('./api')())
+
+	/**
+	 * Legacy eSign route (redirect to new path)
+	 * @deprecated Use /api/sitelink/esign instead
+	 */
+	app.use('*/esign', (req, res, next) => {
+		// Redirect to new path structure
+		const newPath = req.originalUrl.replace('/esign', '/sitelink/esign')
+		console.log(`Legacy redirect: ${req.originalUrl} -> ${newPath}`)
+		res.redirect(307, newPath)
+	})
 
 	/**
 	 * Not Found
