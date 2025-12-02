@@ -37,36 +37,55 @@ module.exports = () => {
 			if (result.data?.Table) {
 				const tableData = Array.isArray(result.data.Table) ? result.data.Table : [result.data.Table]
 				
-				units = tableData.map(unit => ({
-					unitTypeId: unit.UnitTypeID,
-					typeName: unit.sTypeName,
-					width: parseFloat(unit.dcWidth) || 0,
-					depth: parseFloat(unit.dcDepth) || 0,
-					sqft: parseFloat(unit.dcSqFt) || 0,
-					size: `${unit.dcWidth}' x ${unit.dcDepth}'`,
-					floor: parseInt(unit.iFloor) || 1,
+				units = tableData.map(unit => {
+					const width = parseFloat(unit.dcWidth) || 0
+					const length = parseFloat(unit.dcLength) || 0
+					const sqft = width * length
 					
-					// Pricing
-					webRate: parseFloat(unit.dcWebRate) || 0,
-					standardRate: parseFloat(unit.dcStdRate) || 0,
-					pushRate: parseFloat(unit.dcPushRate) || 0,
-					
-					// Availability
-					availableCount: parseInt(unit.iAvailable) || 0,
-					
-					// Features
-					climate: unit.bClimate === 'true' || unit.bClimate === true,
-					interior: unit.bInterior === 'true' || unit.bInterior === true,
-					driveUp: unit.bDriveUp === 'true' || unit.bDriveUp === true,
-					elevator: unit.bElevator === 'true' || unit.bElevator === true,
-					power: unit.bPower === 'true' || unit.bPower === true,
-					alarmAvailable: unit.bAlarm === 'true' || unit.bAlarm === true,
-					
-					// Description
-					description: unit.sDescription || '',
-					category: categorizeSize(parseFloat(unit.dcSqFt) || 0)
-				}))
+					return {
+						unitId: unit.UnitID,
+						unitName: unit.sUnitName,
+						unitTypeId: unit.UnitTypeID,
+						typeName: unit.sTypeName,
+						width,
+						depth: length,
+						sqft,
+						size: `${width}' x ${length}'`,
+						floor: parseInt(unit.iFloor) || 1,
+						
+						// Pricing
+						webRate: parseFloat(unit.dcWebRate) || 0,
+						standardRate: parseFloat(unit.dcStdRate) || 0,
+						pushRate: parseFloat(unit.dcPushRate) || 0,
+						boardRate: parseFloat(unit.dcBoardRate) || 0,
+						weeklyRate: parseFloat(unit.dcStdWeeklyRate) || 0,
+						securityDeposit: parseFloat(unit.dcStdSecDep) || 0,
+						
+						// Availability
+						isRented: unit.bRented === 'true' || unit.bRented === true,
+						isRentable: unit.bRentable === 'true' || unit.bRentable === true,
+						daysVacant: parseInt(unit.iDaysVacant) || 0,
+						
+						// Features
+						climate: unit.bClimate === 'true' || unit.bClimate === true,
+						interior: unit.bInside === 'true' || unit.bInside === true,
+						driveUp: unit.sTypeName?.toLowerCase().includes('drive') || false,
+						power: unit.bPower === 'true' || unit.bPower === true,
+						alarmAvailable: unit.bAlarm === 'true' || unit.bAlarm === true,
+						
+						// Location/Site info
+						siteId: unit.SiteID,
+						locationCode: unit.sLocationCode,
+						
+						// Description
+						description: unit.sUnitDesc || '',
+						note: unit.sUnitNote || '',
+						category: categorizeSize(sqft)
+					}
+				})
 			}
+
+			console.log('Units (available) -> transformed units', units[0])
 
 			// Apply client-side filters
 			if (unitTypeId) {
@@ -79,13 +98,58 @@ module.exports = () => {
 				units = units.filter(u => u.sqft <= parseFloat(maxSqft))
 			}
 
-			// Filter only available
-			units = units.filter(u => u.availableCount > 0)
+			// Filter only available (not rented and rentable)
+			units = units.filter(u => !u.isRented && u.isRentable)
+
+			// Group by normalized size (treating WxL same as LxW)
+			const groupedBySize = {}
+			units.forEach(unit => {
+				// Normalize size key: always put smaller dimension first
+				const dim1 = Math.min(unit.width, unit.depth)
+				const dim2 = Math.max(unit.width, unit.depth)
+				const normalizedSize = `${dim1}' x ${dim2}'`
+				
+				if (!groupedBySize[normalizedSize]) {
+					groupedBySize[normalizedSize] = {
+						size: normalizedSize,
+						width: dim1,
+						depth: dim2,
+						sqft: dim1 * dim2,
+						category: categorizeSize(dim1 * dim2),
+						units: [],
+						availableCount: 0,
+						// Pricing will be min/max across units
+						minRate: Infinity,
+						maxRate: 0
+					}
+				}
+				
+				const group = groupedBySize[normalizedSize]
+				group.units.push(unit)
+				group.availableCount++
+				
+				// Track min/max rates
+				if (unit.webRate > 0 && unit.webRate < group.minRate) group.minRate = unit.webRate
+				if (unit.webRate > group.maxRate) group.maxRate = unit.webRate
+			})
+			
+			// Convert to array and clean up pricing
+			const groupedUnits = Object.values(groupedBySize).map(group => ({
+				...group,
+				minRate: group.minRate === Infinity ? 0 : group.minRate,
+				priceRange: group.minRate === group.maxRate 
+					? `$${group.minRate}` 
+					: `$${group.minRate} - $${group.maxRate}`
+			}))
+			
+			// Sort by sqft
+			groupedUnits.sort((a, b) => a.sqft - b.sqft)
 
 			res.json({
 				status: 'ok',
-				units,
-				count: units.length
+				groupedUnits,
+				totalAvailable: units.length,
+				sizeCount: groupedUnits.length
 			})
 
 		} catch (e) {
