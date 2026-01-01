@@ -1,0 +1,716 @@
+{
+  "info": {
+    "name": "SiteLink API - Megacenter Subset",
+    "description": "Endpoints filtrados para integración Move-In con Next.js",
+    "baseUrl": "https://api.smdservers.net/CCWs_3.5/CallCenterWs.asmx"
+  },
+  "auth": {
+    "description": "Todos los endpoints requieren estas 4 credenciales en el body SOAP",
+    "fields": {
+      "sCorpCode": "Código de corporación (ej: CDRH)",
+      "sLocationCode": "Código de ubicación/sucursal (ej: L012)",
+      "sCorpUserName": "Usuario en formato 'NombreUsuario:::CORPID'",
+      "sCorpPassword": "Contraseña del usuario"
+    }
+  },
+  "endpoints": {
+    "cache": {
+      "description": "Endpoints para cachear cada 15 minutos",
+      "UnitTypePriceList_v2": {
+        "soapAction": "http://tempuri.org/CallCenterWs/CallCenterWs/UnitTypePriceList_v2",
+        "description": "Lista de tipos de unidades con precios, disponibilidad, fees y primera unidad disponible de cada tipo",
+        "params": [],
+        "response": {
+          "tables": ["Table", "RT"],
+          "Table": {
+            "description": "Una row por tipo de unidad",
+            "fields": [
+              {"name": "SiteID", "type": "int", "description": "Site ID"},
+              {"name": "iCurrencyDecimals", "type": "int", "description": "Decimales para redondeo de cargos"},
+              {"name": "iTaxDecimals", "type": "int", "description": "Decimales para redondeo de impuestos"},
+              {"name": "dcTax1Rate_Rent", "type": "decimal", "description": "Tasa impuesto 1 para renta"},
+              {"name": "dcTax2Rate_Rent", "type": "decimal", "description": "Tasa impuesto 2 para renta"},
+              {"name": "UnitTypeID", "type": "int", "description": "ID del tipo de unidad", "key": true},
+              {"name": "sTypeName", "type": "string", "description": "Nombre del tipo (Self Storage, Parking, etc)"},
+              {"name": "bChargeTax1", "type": "boolean", "description": "¿Cobra impuesto 1?"},
+              {"name": "bChargeTax2", "type": "boolean", "description": "¿Cobra impuesto 2?"},
+              {"name": "bMobile", "type": "boolean", "description": "¿Designado para móvil?"},
+              {"name": "bClimate", "type": "boolean", "description": "¿Control de clima?"},
+              {"name": "bPower", "type": "boolean", "description": "¿Tiene electricidad?"},
+              {"name": "bAlarm", "type": "boolean", "description": "¿Tiene alarma?"},
+              {"name": "bInside", "type": "boolean", "description": "¿Es interior?"},
+              {"name": "iFloor", "type": "int", "description": "Piso"},
+              {"name": "dcWidth", "type": "decimal", "description": "Ancho"},
+              {"name": "dcLength", "type": "decimal", "description": "Largo"},
+              {"name": "dcArea", "type": "decimal", "description": "Área total"},
+              {"name": "dcStdRate", "type": "decimal", "description": "Tarifa estándar mensual", "important": true},
+              {"name": "dcStdWeeklyRate", "type": "decimal", "description": "Tarifa estándar semanal"},
+              {"name": "iTotalUnits", "type": "int", "description": "Total unidades de este tipo"},
+              {"name": "iTotalOccupied", "type": "int", "description": "Unidades ocupadas"},
+              {"name": "iTotalVacant", "type": "int", "description": "Unidades disponibles", "important": true},
+              {"name": "iTotalReserved", "type": "int", "description": "Unidades reservadas"},
+              {"name": "UnitID_FirstAvailable", "type": "int", "description": "UnitID primera disponible", "important": true},
+              {"name": "sUnitName_FirstAvailable", "type": "string", "description": "Nombre primera disponible"},
+              {"name": "sUnitDesc_FirstAvailable", "type": "string", "description": "Descripción primera disponible"},
+              {"name": "UnitID_Representative", "type": "int", "description": "UnitID representativa del tipo"},
+              {"name": "sUnitName_Representative", "type": "string", "description": "Nombre unidad representativa"},
+              {"name": "sUnitDesc_Representative", "type": "string", "description": "Descripción unidad representativa"},
+              {"name": "dcAdminFee", "type": "decimal", "description": "Fee de administración", "important": true},
+              {"name": "dcReservationFee", "type": "decimal", "description": "Fee de reservación", "important": true},
+              {"name": "bRented_FirstAvailable", "type": "boolean", "description": "True si primera disponible ya rentada"},
+              {"name": "bExcludeFromInsurance", "type": "boolean", "description": "¿Excluido de seguro?"},
+              {"name": "ConcessionID", "type": "int", "description": "ID mejor descuento (link a DiscountPlansRetrieve)"},
+              {"name": "dcWebRate", "type": "decimal", "description": "Tarifa web", "important": true},
+              {"name": "dcBoardRate", "type": "decimal", "description": "Tarifa de tablero"},
+              {"name": "dcPreferredRate", "type": "decimal", "description": "Tarifa preferida"},
+              {"name": "iPreferredChannelType", "type": "int", "description": "Canal de tarifa preferida"},
+              {"name": "bPreferredIsPushRate", "type": "boolean", "description": "¿Preferida es push rate?"}
+            ]
+          },
+          "RT": {
+            "description": "Resultado de la operación",
+            "success": {"Ret_Code": 1},
+            "error": {"Ret_Code": "error code", "Ret_Msg": "mensaje de error"}
+          }
+        }
+      },
+      "DiscountPlansRetrieve": {
+        "soapAction": "http://tempuri.org/CallCenterWs/CallCenterWs/DiscountPlansRetrieve",
+        "description": "Planes de descuento disponibles. Si no hay ConcessionUnitTypes para un ConcessionID, aplica a todos los tipos. Si hay registros, solo aplica a esos tipos/tamaños.",
+        "params": [],
+        "response": {
+          "tables": ["RT", "ConcessionPlans", "ConcessionUnitTypes"],
+          "ConcessionPlans": {
+            "description": "Una row por plan de descuento",
+            "fields": [
+              {"name": "ConcessionID", "type": "int", "description": "ID del plan", "key": true},
+              {"name": "SiteID", "type": "int", "description": "Site ID"},
+              {"name": "sPlanName", "type": "string", "description": "Nombre del plan", "important": true},
+              {"name": "sDescription", "type": "string", "description": "Descripción del plan"},
+              {"name": "sComment", "type": "string", "description": "Comentario"},
+              {"name": "iShowOn", "type": "int", "description": "Dónde mostrar: 0=Todas, 1=Solo Move-ins, 2=Solo Pagos"},
+              {"name": "bNeverExpires", "type": "boolean", "description": "True si nunca expira"},
+              {"name": "iExpirMonths", "type": "int", "description": "Meses hasta expiración"},
+              {"name": "bPrepay", "type": "boolean", "description": "Requiere prepago"},
+              {"name": "iPrePaidMonths", "type": "int", "description": "Meses de prepago requeridos"},
+              {"name": "iInMonth", "type": "int", "description": "Mes en que se aplica"},
+              {"name": "iAmtType", "type": "int", "description": "Tipo: 0=Monto fijo(dcFixedDiscount), 1=Porcentaje(dcPCDiscount), 2=Tarifa fija(dcChgAmt)", "important": true},
+              {"name": "dcChgAmt", "type": "decimal", "description": "Precio fijo del item"},
+              {"name": "dcFixedDiscount", "type": "decimal", "description": "Monto descuento fijo", "important": true},
+              {"name": "dcPCDiscount", "type": "decimal", "description": "Porcentaje descuento", "important": true},
+              {"name": "bRound", "type": "boolean", "description": "Si redondear"},
+              {"name": "dcRoundTo", "type": "decimal", "description": "Tipo redondeo: 0=No, 0.1, 0.5, 1.0, 5.0, 10.0"},
+              {"name": "dcMaxAmountOff", "type": "decimal", "description": "Máximo descuento posible"},
+              {"name": "bForCopr", "type": "boolean", "description": "Para promociones corporativas"},
+              {"name": "bForAllUnits", "type": "boolean", "description": "Aplica a todas las unidades"},
+              {"name": "dDisabled", "type": "datetime", "description": "Si no es null, está deshabilitado"},
+              {"name": "sDefChgDesc", "type": "string", "description": "Descripción cargo default"},
+              {"name": "sChgDesc", "type": "string", "description": "Descripción cargo custom"},
+              {"name": "sChgCategory", "type": "string", "description": "Categoría del cargo"},
+              {"name": "bApplyAtMoveIn", "type": "boolean", "description": "Aplicar en move-in", "important": true},
+              {"name": "bProrateAtMoveIn", "type": "boolean", "description": "Prorratear en move-in"},
+              {"name": "dcPrice", "type": "decimal", "description": "Precio del cargo"},
+              {"name": "dcTax1Rate", "type": "decimal", "description": "Tasa impuesto 1"},
+              {"name": "dcTax2Rate", "type": "decimal", "description": "Tasa impuesto 2"},
+              {"name": "iAvailableAt", "type": "int", "description": "Canal: 0=Todos, 1=Client, 2=Website, 3=Kiosk, 4=CallCenter, 5=SpareFoot. Si >=16 usar bitmask", "important": true}
+            ],
+            "iAvailableAt_bitmask": {
+              "note": "Si iAvailableAt >= 16, usar bitmask",
+              "values": {"Client": 16, "Website": 32, "Kiosk": 64, "CallCenter": 128, "SpareFoot": 256}
+            }
+          },
+          "ConcessionUnitTypes": {
+            "description": "Restricciones por tipo de unidad. Si vacío para un ConcessionID, aplica a todos los tipos.",
+            "fields": [
+              {"name": "ConcessionUnitTypeID", "type": "int", "description": "ID de la restricción"},
+              {"name": "ConcessionID", "type": "int", "description": "FK al plan"},
+              {"name": "UnitTypeID", "type": "int", "description": "Tipo de unidad permitido"},
+              {"name": "dcWidth", "type": "string", "description": "Ancho permitido"},
+              {"name": "dcLength", "type": "int", "description": "Largo permitido"}
+            ]
+          },
+          "RT": {
+            "success": {"Ret_Code": 1},
+            "error": {"Ret_Code": -1, "Ret_Msg": "mensaje de error"}
+          }
+        }
+      },
+      "InsuranceCoverageRetrieve": {
+        "soapAction": "http://tempuri.org/CallCenterWs/CallCenterWs/InsuranceCoverageRetrieve",
+        "description": "Planes de seguro disponibles para el sitio",
+        "params": [],
+        "response": {
+          "tables": ["RT", "Table"],
+          "Table": {
+            "description": "Una row por opción de seguro",
+            "fields": [
+              {"name": "InsurCoverageID", "type": "int", "description": "ID de la cobertura (usar en MoveIn)", "key": true, "important": true},
+              {"name": "SiteID", "type": "int", "description": "Site ID"},
+              {"name": "dcCoverage", "type": "decimal", "description": "Monto de cobertura (ej: 2000, 5000)", "important": true},
+              {"name": "dcPremium", "type": "decimal", "description": "Prima mensual", "important": true},
+              {"name": "dcPCTheft", "type": "decimal", "description": "Porcentaje cobertura por robo"},
+              {"name": "sCoverageDesc", "type": "string", "description": "Descripción de la cobertura", "important": true},
+              {"name": "sProvidor", "type": "string", "description": "Nombre del proveedor"}
+            ]
+          },
+          "RT": {
+            "success": {"Ret_Code": 1},
+            "error": {"Ret_Code": "error code", "Ret_Msg": "mensaje de error"}
+          }
+        }
+      }
+    },
+    "tenants": {
+      "description": "Endpoints para consultar y buscar tenants/clientes",
+      "TenantListDetailed_v3": {
+        "soapAction": "http://tempuri.org/CallCenterWs/CallCenterWs/TenantListDetailed_v3",
+        "description": "Busca tenants por múltiples criterios. Búsqueda fuzzy ('Jo Smi' → 'John Smith'). Si location vacío, busca en todos los sites. MÁXIMO 50 resultados.",
+        "params": [
+          {"name": "sLocationCode", "type": "string", "description": "Vacío = buscar en todos los sites"},
+          {"name": "sTenantFirstName", "type": "string", "description": "Filtro nombre"},
+          {"name": "sTenantLastName", "type": "string", "description": "Filtro apellido"},
+          {"name": "sAddressLine1", "type": "string", "description": "Filtro dirección 1"},
+          {"name": "sAddressLine2", "type": "string", "description": "Filtro dirección 2"},
+          {"name": "sCity", "type": "string", "description": "Filtro ciudad"},
+          {"name": "sState", "type": "string", "description": "Filtro estado/región"},
+          {"name": "sZipCode", "type": "string", "description": "Filtro código postal"},
+          {"name": "sEmailAddress", "type": "string", "description": "Filtro email"},
+          {"name": "sPhoneNumber", "type": "string", "description": "Filtro teléfono"},
+          {"name": "sCompanyName", "type": "string", "description": "Filtro empresa"},
+          {"name": "sUnitName", "type": "string", "description": "Filtro nombre unidad"},
+          {"name": "sAccessCode", "type": "string", "description": "Filtro código acceso"},
+          {"name": "sBPayCRN", "type": "string", "description": "Filtro BPay CRN"}
+        ],
+        "response": {
+          "tables": ["Table"],
+          "Table": {
+            "description": "Máximo 50 tenants que coinciden",
+            "fields": [
+              {"name": "SiteID", "type": "int", "description": "Site ID"},
+              {"name": "TenantID", "type": "int", "description": "ID del tenant", "key": true, "important": true},
+              {"name": "sLocationCode", "type": "string", "description": "Código ubicación"},
+              {"name": "sFName", "type": "string", "description": "Nombre"},
+              {"name": "sMI", "type": "string", "description": "Inicial"},
+              {"name": "sLName", "type": "string", "description": "Apellido"},
+              {"name": "sCompany", "type": "string", "description": "Empresa"},
+              {"name": "sAddr1", "type": "string", "description": "Dirección 1"},
+              {"name": "sAddr2", "type": "string", "description": "Dirección 2"},
+              {"name": "sCity", "type": "string", "description": "Ciudad"},
+              {"name": "sRegion", "type": "string", "description": "Estado/Región"},
+              {"name": "sPostalCode", "type": "string", "description": "Código postal"},
+              {"name": "sPhone", "type": "string", "description": "Teléfono"},
+              {"name": "sEmail", "type": "string", "description": "Email"},
+              {"name": "sMobile", "type": "string", "description": "Celular"},
+              {"name": "sLicense", "type": "string", "description": "Licencia"},
+              {"name": "sAccessCode", "type": "string", "description": "Código acceso"},
+              {"name": "bHasActiveLedger", "type": "boolean", "description": "True si tiene arriendo activo", "important": true}
+            ]
+          },
+          "RT_error": {"Ret_Code": -1, "Ret_Msg": "Failed to get data"}
+        }
+      }
+    },
+    "ledgers": {
+      "description": "Endpoints para consultar arriendos/ledgers",
+      "LedgersByTenantID": {
+        "soapAction": "http://tempuri.org/CallCenterWs/CallCenterWs/LedgersByTenantID",
+        "description": "Todos los arriendos de un tenant. Incluye info completa del tenant + datos de cada ledger (81 campos por row).",
+        "params": [
+          {"name": "sTenantID", "type": "string", "required": true, "description": "ID del tenant"}
+        ],
+        "response": {
+          "tables": ["Ledgers"],
+          "Ledgers": {
+            "description": "Una row por ledger. Campos 1-57 = info tenant, 68-81 = info ledger",
+            "tenant_fields": [
+              {"name": "TenantID", "type": "int", "description": "ID tenant"},
+              {"name": "SiteID", "type": "int", "description": "Site ID"},
+              {"name": "sAccessCode", "type": "string", "description": "Código acceso"},
+              {"name": "sFName", "type": "string", "description": "Nombre"},
+              {"name": "sLName", "type": "string", "description": "Apellido"},
+              {"name": "sEmail", "type": "string", "description": "Email"},
+              {"name": "bCommercial", "type": "boolean", "description": "¿Comercial?"},
+              {"name": "bOnWaitingList", "type": "boolean", "description": "¿En waiting list?"},
+              {"name": "bNoChecks", "type": "boolean", "description": "¿Tiene NSF?"}
+            ],
+            "ledger_fields": [
+              {"name": "LedgerID", "type": "int", "description": "ID del ledger", "key": true, "important": true},
+              {"name": "bOverlocked", "type": "boolean", "description": "True si unidad bloqueada", "important": true},
+              {"name": "sUnitName", "type": "string", "description": "Nombre unidad", "important": true},
+              {"name": "dcChargeBalance", "type": "decimal", "description": "Balance cargos pendientes", "important": true},
+              {"name": "dPaidThru", "type": "date", "description": "Pagado hasta", "important": true},
+              {"name": "dcTotalDue", "type": "decimal", "description": "Total adeudado", "important": true},
+              {"name": "iLeaseNum", "type": "int", "description": "Número de lease"},
+              {"name": "dMovedIn", "type": "date", "description": "Fecha move-in", "important": true},
+              {"name": "dcRent", "type": "decimal", "description": "Renta mensual", "important": true},
+              {"name": "sBillingFrequency", "type": "string", "description": "Frecuencia cobro"},
+              {"name": "TenantName", "type": "string", "description": "Nombre completo"},
+              {"name": "Address", "type": "string", "description": "Dirección completa"},
+              {"name": "ContactInfo", "type": "string", "description": "Info contacto"}
+            ]
+          },
+          "RT_error": {"Ret_Code": -1, "Ret_Msg": "Invalid tenant ID"}
+        }
+      }
+    },
+    "esign": {
+      "description": "Endpoints para firma electrónica de contratos",
+      "SiteLinkeSignCreateLeaseURL_v2": {
+        "soapAction": "http://tempuri.org/CallCenterWs/CallCenterWs/SiteLinkeSignCreateLeaseURL_v2",
+        "description": "Genera URL de firma electrónica. Llamar DESPUÉS de move-in. Requiere keyword ESign.Signature1 en el Lease de SiteLink.",
+        "params": [
+          {"name": "iTenantID", "type": "int", "required": true, "description": "ID del tenant"},
+          {"name": "iLedgerID", "type": "int", "required": true, "description": "ID del ledger (de MoveInWithDiscount_v4)"},
+          {"name": "sFormIDs", "type": "string", "required": true, "description": "FormIDs separados por coma (de FormsRetrieve)"},
+          {"name": "sReturnUrl", "type": "string", "required": true, "description": "URL de retorno después de firmar"}
+        ],
+        "response": {
+          "tables": ["RT"],
+          "RT_success": {
+            "Ret_Code": 1,
+            "EsignUrl": "URL de firma electrónica"
+          },
+          "error_codes": {
+            "-2": "Lease does not have ESign.Signature1 keyword",
+            "-24": "Invalid Ledger ID",
+            "-95": "Invalid Tenant ID"
+          }
+        },
+        "flow": "MoveIn → LedgerID → SiteLinkeSign → EsignUrl → Redirect tenant → Firma → Return to sReturnUrl"
+      }
+    },
+    "units": {
+      "description": "Endpoints para consultar información de unidades",
+      "UnitsInformation_v2": {
+        "soapAction": "http://tempuri.org/CallCenterWs/CallCenterWs/UnitsInformation_v2",
+        "description": "Todas las unidades (disponibles + ocupadas). Usa polling incremental con lngLastTimePolled. Cache recomendado cada 15 min.",
+        "params": [
+          {
+            "name": "lngLastTimePolled",
+            "type": "long",
+            "description": "Ticks del último poll. Usar 0 o valor antiguo para obtener todas. Guardar lngLastTimePolled del response para siguiente llamada."
+          }
+        ],
+        "response": {
+          "tables": ["Table", "Table1"],
+          "Table": {
+            "description": "Una row por unidad",
+            "fields": [
+              {"name": "Ret_Code", "type": "int", "description": "1=éxito"},
+              {"name": "UnitTypeID", "type": "int", "description": "ID tipo de unidad"},
+              {"name": "sTypeName", "type": "string", "description": "Nombre tipo (Self Storage, Parking)"},
+              {"name": "UnitID", "type": "int", "description": "ID de la unidad", "key": true, "important": true},
+              {"name": "sUnitName", "type": "string", "description": "Nombre unidad (ej: U123)", "important": true},
+              {"name": "dcWidth", "type": "decimal", "description": "Ancho"},
+              {"name": "dcLength", "type": "decimal", "description": "Largo"},
+              {"name": "bClimate", "type": "boolean", "description": "¿Control clima?"},
+              {"name": "dcStdRate", "type": "decimal", "description": "Tarifa estándar", "important": true},
+              {"name": "bRented", "type": "boolean", "description": "True si rentada", "important": true},
+              {"name": "bInside", "type": "boolean", "description": "¿Interior?"},
+              {"name": "bPower", "type": "boolean", "description": "¿Electricidad?"},
+              {"name": "bAlarm", "type": "boolean", "description": "¿Alarma?"},
+              {"name": "iFloor", "type": "int", "description": "Piso"},
+              {"name": "bWaitingListReserved", "type": "boolean", "description": "True si reservada", "important": true},
+              {"name": "dMovedOut", "type": "date", "description": "Última fecha move-out"},
+              {"name": "bCorporate", "type": "boolean", "description": "¿Corporativa?"},
+              {"name": "bRentable", "type": "boolean", "description": "True si se puede rentar", "important": true},
+              {"name": "dDeleted", "type": "date", "description": "Fecha eliminación (null si activa)"},
+              {"name": "dcBoardRate", "type": "decimal", "description": "Tarifa tablero"},
+              {"name": "sUnitNote", "type": "string", "description": "Nota"},
+              {"name": "dcPushRate", "type": "decimal", "description": "Tarifa push"},
+              {"name": "dcTax1Rate", "type": "decimal", "description": "Impuesto 1"},
+              {"name": "dcTax2Rate", "type": "decimal", "description": "Impuesto 2"},
+              {"name": "sUnitDesc", "type": "string", "description": "Descripción"},
+              {"name": "iEntryLoc", "type": "int", "description": "Entrada: 0=Undefined, 1=Exterior, 2=Interior Hallway, 3=Elevator"},
+              {"name": "iDoorType", "type": "int", "description": "Puerta: 0=Undefined, 1=Rollup, 2=Swing"},
+              {"name": "iADA", "type": "int", "description": "1 si acceso discapacidad"},
+              {"name": "dcStdSecDep", "type": "decimal", "description": "Depósito seguridad"},
+              {"name": "bMobile", "type": "boolean", "description": "¿Portable?"},
+              {"name": "dcPreferredRate", "type": "decimal", "description": "Tarifa preferida"},
+              {"name": "iPreferredChannelType", "type": "int", "description": "Canal tarifa preferida"},
+              {"name": "bPreferredIsPushRate", "type": "boolean", "description": "¿Preferida es push?"}
+            ]
+          },
+          "Table1": {
+            "description": "Metadata del poll (una row)",
+            "fields": [
+              {"name": "dLatestUpdated", "type": "datetime", "description": "Última actualización de unidad"},
+              {"name": "lngLastTimePolled", "type": "long", "description": "Guardar para siguiente poll", "important": true}
+            ]
+          },
+          "RT_error": {
+            "Ret_Code": "0=No data, -1=Failure",
+            "Ret_Msg": "mensaje de error"
+          }
+        }
+      },
+      "UnitsInformation_v3": {
+        "soapAction": "http://tempuri.org/CallCenterWs/CallCenterWs/UnitsInformation_v3",
+        "description": "Igual que v2 + opción de incluir excluidas de web + dcWebRate en response",
+        "params": [
+          {
+            "name": "lngLastTimePolled",
+            "type": "long",
+            "description": "Ticks del último poll"
+          },
+          {
+            "name": "bReturnExcludedFromWebsiteUnits",
+            "type": "boolean",
+            "description": "True para incluir unidades excluidas del sitio web"
+          }
+        ],
+        "response": {
+          "tables": ["Table", "Table1"],
+          "Table": {
+            "description": "Una row por unidad (39 campos)",
+            "fields": [
+              {"name": "Ret_Code", "type": "int", "description": "1=éxito"},
+              {"name": "UnitTypeID", "type": "int", "description": "ID tipo"},
+              {"name": "sTypeName", "type": "string", "description": "Nombre tipo"},
+              {"name": "UnitID", "type": "int", "description": "ID unidad", "key": true, "important": true},
+              {"name": "sUnitName", "type": "string", "description": "Nombre unidad", "important": true},
+              {"name": "dcWidth", "type": "decimal", "description": "Ancho"},
+              {"name": "dcLength", "type": "decimal", "description": "Largo"},
+              {"name": "bClimate", "type": "boolean", "description": "¿Clima?"},
+              {"name": "dcStdRate", "type": "decimal", "description": "Tarifa estándar", "important": true},
+              {"name": "bRented", "type": "boolean", "description": "¿Rentada?", "important": true},
+              {"name": "bInside", "type": "boolean", "description": "¿Interior?"},
+              {"name": "bPower", "type": "boolean", "description": "¿Electricidad?"},
+              {"name": "bAlarm", "type": "boolean", "description": "¿Alarma?"},
+              {"name": "iFloor", "type": "int", "description": "Piso"},
+              {"name": "bWaitingListReserved", "type": "boolean", "description": "¿Reservada?", "important": true},
+              {"name": "dMovedOut", "type": "date", "description": "Fecha move-out"},
+              {"name": "bCorporate", "type": "boolean", "description": "¿Corporativa?"},
+              {"name": "bRentable", "type": "boolean", "description": "¿Rentable?", "important": true},
+              {"name": "dDeleted", "type": "date", "description": "Fecha eliminación"},
+              {"name": "dcBoardRate", "type": "decimal", "description": "Tarifa tablero"},
+              {"name": "sUnitNote", "type": "string", "description": "Nota"},
+              {"name": "dcPushRate", "type": "decimal", "description": "Tarifa push"},
+              {"name": "dcTax1Rate", "type": "decimal", "description": "Impuesto 1"},
+              {"name": "dcTax2Rate", "type": "decimal", "description": "Impuesto 2"},
+              {"name": "sUnitDesc", "type": "string", "description": "Descripción"},
+              {"name": "iEntryLoc", "type": "int", "description": "0=Undefined, 1=Exterior, 2=Interior, 3=Elevator"},
+              {"name": "iDoorType", "type": "int", "description": "0=Undefined, 1=Rollup, 2=Swing"},
+              {"name": "iADA", "type": "int", "description": "1=acceso discapacidad"},
+              {"name": "dcStdSecDep", "type": "decimal", "description": "Depósito seguridad"},
+              {"name": "bMobile", "type": "boolean", "description": "¿Portable?"},
+              {"name": "dcWebRate", "type": "decimal", "description": "Tarifa web (NUEVO en v3)", "important": true},
+              {"name": "dcPreferredRate", "type": "decimal", "description": "Tarifa preferida"},
+              {"name": "iPreferredChannelType", "type": "int", "description": "Canal preferido"},
+              {"name": "bPreferredIsPushRate", "type": "boolean", "description": "¿Preferida es push?"}
+            ]
+          },
+          "Table1": {
+            "fields": [
+              {"name": "dLatestUpdated", "type": "datetime", "description": "Última actualización"},
+              {"name": "lngLastTimePolled", "type": "long", "description": "Para siguiente poll", "important": true}
+            ]
+          },
+          "RT_error": {"Ret_Code": "0=No data, -1=Failure", "Ret_Msg": "mensaje"}
+        }
+      }
+    },
+    "reservation": {
+      "description": "Endpoints para crear reservaciones (sin pago inmediato)",
+      "ReservationNewWithSource_v5": {
+        "soapAction": "http://tempuri.org/CallCenterWs/CallCenterWs/ReservationNewWithSource_v5",
+        "description": "Crea reservación para tenant existente. Permite hasta 3 unidades, tracking de fuente, fechas de expiración/follow-up, y descuento. Tenant queda en Waiting List.",
+        "params": [
+          {"name": "sTenantID", "type": "string", "required": true, "description": "ID del tenant"},
+          {"name": "sUnitID", "type": "string", "required": true, "description": "ID unidad principal"},
+          {"name": "sUnitID2", "type": "string", "description": "ID unidad 2 (opcional)"},
+          {"name": "sUnitID3", "type": "string", "description": "ID unidad 3 (opcional)"},
+          {"name": "dNeeded", "type": "date", "required": true, "description": "Fecha que necesita"},
+          {"name": "sComment", "type": "string", "description": "Nota/comentario"},
+          {"name": "iSource", "type": "int", "required": true, "description": "Fuente: 1=Call Center, 5=Website"},
+          {"name": "sSource", "type": "string", "description": "Fuente texto libre"},
+          {"name": "QTRentalTypeID", "type": "int", "required": true, "description": "1=Quote (Inquiry), 2=Order (Reservation)"},
+          {"name": "iInquiryType", "type": "int", "required": true, "description": "0=Unknown, 1=Email, 2=Web, 3=Phone, 4=WalkIn"},
+          {"name": "dcQuotedRate", "type": "decimal", "description": "Tarifa cotizada"},
+          {"name": "dExpires", "type": "date", "description": "Fecha expiración reserva"},
+          {"name": "dFollowUp", "type": "date", "description": "Fecha follow-up"},
+          {"name": "sTrackingCode", "type": "string", "description": "UTM/tracking code"},
+          {"name": "sCallerID", "type": "string", "description": "Caller ID"},
+          {"name": "ConcessionID", "type": "int", "description": "ID descuento (-999 = ninguno)"}
+        ],
+        "response": {
+          "tables": ["RT"],
+          "RT_success": {
+            "Ret_Code": "WaitingListID (número positivo)",
+            "Ret_Msg": "iGlobalWaitingNum"
+          },
+          "RT_error": {
+            "-1": "Unable to connect to database",
+            "-2": "Error saving Reservation",
+            "-3": "Invalid concession plan ID",
+            "-25": "Invalid UnitID",
+            "-26": "Error getting rent tax rates",
+            "-95": "Invalid TenantID"
+          }
+        },
+        "important_note": "Guardar WaitingListID para: 1) ReservationFeeAdd, 2) MoveInWithDiscount_v4 con WaitingID"
+      }
+    },
+    "realtime": {
+      "description": "Endpoints para llamar en tiempo real durante el flow de move-in",
+      "UnitsInformationAvailableUnitsOnly_v2": {
+        "soapAction": "http://tempuri.org/CallCenterWs/CallCenterWs/UnitsInformationAvailableUnitsOnly_v2",
+        "description": "Solo unidades DISPONIBLES. NOTA: Unidades reservadas en waiting list SÍ aparecen aquí (verificar bWaitingListReserved).",
+        "params": [
+          {
+            "name": "lngLastTimePolled",
+            "type": "long",
+            "description": "Ticks del último poll. Usar 0 para todas."
+          }
+        ],
+        "response": {
+          "tables": ["Table", "Table1"],
+          "Table": {
+            "description": "Una row por unidad disponible (39 campos)",
+            "fields": [
+              {"name": "Ret_Code", "type": "int", "description": "1=éxito"},
+              {"name": "UnitTypeID", "type": "int", "description": "ID tipo"},
+              {"name": "sTypeName", "type": "string", "description": "Tipo unidad"},
+              {"name": "UnitID", "type": "int", "description": "ID unidad", "key": true, "important": true},
+              {"name": "sUnitName", "type": "string", "description": "Nombre (ej: U123)", "important": true},
+              {"name": "dcWidth", "type": "decimal", "description": "Ancho"},
+              {"name": "dcLength", "type": "decimal", "description": "Largo"},
+              {"name": "bClimate", "type": "boolean", "description": "¿Clima?"},
+              {"name": "dcStdRate", "type": "decimal", "description": "Tarifa estándar", "important": true},
+              {"name": "bRented", "type": "boolean", "description": "Siempre false aquí"},
+              {"name": "bInside", "type": "boolean", "description": "¿Interior?"},
+              {"name": "bPower", "type": "boolean", "description": "¿Electricidad?"},
+              {"name": "bAlarm", "type": "boolean", "description": "¿Alarma?"},
+              {"name": "iFloor", "type": "int", "description": "Piso"},
+              {"name": "bWaitingListReserved", "type": "boolean", "description": "IMPORTANTE: True si reservada", "important": true},
+              {"name": "dMovedOut", "type": "date", "description": "Fecha move-out"},
+              {"name": "bCorporate", "type": "boolean", "description": "¿Corporativa?"},
+              {"name": "bRentable", "type": "boolean", "description": "¿Rentable?"},
+              {"name": "dDeleted", "type": "date", "description": "Fecha eliminación"},
+              {"name": "dcBoardRate", "type": "decimal", "description": "Tarifa tablero"},
+              {"name": "sUnitNote", "type": "string", "description": "Nota"},
+              {"name": "dcPushRate", "type": "decimal", "description": "Tarifa push"},
+              {"name": "dcTax1Rate", "type": "decimal", "description": "Impuesto 1"},
+              {"name": "dcTax2Rate", "type": "decimal", "description": "Impuesto 2"},
+              {"name": "sUnitDesc", "type": "string", "description": "Descripción"},
+              {"name": "iEntryLoc", "type": "int", "description": "0=Undefined, 1=Exterior, 2=Interior, 3=Elevator"},
+              {"name": "iDoorType", "type": "int", "description": "0=Undefined, 1=Rollup, 2=Swing"},
+              {"name": "iADA", "type": "int", "description": "1=acceso discapacidad"},
+              {"name": "dcStdSecDep", "type": "decimal", "description": "Depósito seguridad"},
+              {"name": "bMobile", "type": "boolean", "description": "¿Portable?"},
+              {"name": "dcWebRate", "type": "decimal", "description": "Tarifa web", "important": true},
+              {"name": "dcPreferredRate", "type": "decimal", "description": "Tarifa preferida"},
+              {"name": "iPreferredChannelType", "type": "int", "description": "Canal preferido"},
+              {"name": "bPreferredIsPushRate", "type": "boolean", "description": "¿Preferida es push?"}
+            ]
+          },
+          "Table1": {
+            "fields": [
+              {"name": "dLatestUpdated", "type": "datetime", "description": "Última actualización"},
+              {"name": "lngLastTimePolled", "type": "long", "description": "Para siguiente poll", "important": true}
+            ]
+          },
+          "RT_error": {"Ret_Code": "0=No data, -1=Failure", "Ret_Msg": "mensaje"}
+        }
+      },
+      "MoveInCostRetrieveWithDiscount_v2": {
+        "soapAction": "http://tempuri.org/CallCenterWs/CallCenterWs/MoveInCostRetrieveWithDiscount_v2",
+        "description": "Calcula costo total de move-in. LLAMAR ANTES de MoveIn para validar monto. Permite ChannelType para strike-through pricing.",
+        "params": [
+          {"name": "iUnitID", "type": "int", "required": true, "description": "ID de la unidad"},
+          {"name": "dMoveInDate", "type": "date", "required": true, "description": "Fecha move-in"},
+          {"name": "InsuranceCoverageID", "type": "int", "description": "ID seguro (-999 = sin seguro)"},
+          {"name": "ConcessionPlanID", "type": "int", "description": "ID descuento (-999 = sin descuento)"},
+          {"name": "ChannelType", "type": "int", "description": "0=StandardRate, 1=WebRate"}
+        ],
+        "response": {
+          "tables": ["Table"],
+          "Table": {
+            "description": "Múltiples rows, una por cargo (Rent, Admin Fee, Insurance, etc.)",
+            "fields": [
+              {"name": "Ret_Code", "type": "int", "description": "1=éxito"},
+              {"name": "UnitID", "type": "int", "description": "ID unidad"},
+              {"name": "ChargeDescription", "type": "string", "description": "Tipo cargo (Monthly Rent Fee, Admin Fee, Insurance)", "important": true},
+              {"name": "ChargeAmount", "type": "decimal", "description": "Monto del cargo", "important": true},
+              {"name": "TaxAmount", "type": "decimal", "description": "Impuesto", "important": true},
+              {"name": "StartDate", "type": "date", "description": "Fecha inicio cargo"},
+              {"name": "EndDate", "type": "date", "description": "Fecha fin cargo"},
+              {"name": "Width", "type": "int", "description": "Ancho"},
+              {"name": "Length", "type": "int", "description": "Largo"},
+              {"name": "bClimate", "type": "boolean", "description": "¿Clima?"},
+              {"name": "UnitName", "type": "string", "description": "Nombre unidad"},
+              {"name": "TypeName", "type": "string", "description": "Tipo (Self Storage, RV)"},
+              {"name": "bAnnivDateLeasing", "type": "boolean", "description": "¿Lease aniversario?"},
+              {"name": "bMoveInRequired", "type": "boolean", "description": "True si requerido en move-in", "important": true},
+              {"name": "dcDiscount", "type": "decimal", "description": "Monto descontado", "important": true},
+              {"name": "dcTotal", "type": "decimal", "description": "Total cargo (post-descuento)", "important": true},
+              {"name": "ConcessionID", "type": "int", "description": "ID descuento aplicado"},
+              {"name": "dcTenantRate", "type": "decimal", "description": "Tarifa estándar"},
+              {"name": "WebRate", "type": "decimal", "description": "Tarifa web"}
+            ],
+            "total_calculation": "SUM(dcTotal + TaxAmount) WHERE bMoveInRequired = true"
+          },
+          "error_codes": {
+            "0": "No data available",
+            "-1": "General failure",
+            "-2": "Invalid Concession Plan ID",
+            "-3": "Invalid Insurance Coverage ID",
+            "-25": "Invalid Unit ID",
+            "-29": "Invalid channel type"
+          }
+        }
+      },
+      "TenantNewDetailed_v2": {
+        "soapAction": "http://tempuri.org/CallCenterWs/CallCenterWs/TenantNewDetailed_v2",
+        "description": "Crea nuevo tenant con toda la info. Permite setear código de acceso/gate directamente.",
+        "params": [
+          {"name": "sWebPassword", "type": "string", "description": "Password para pagos online"},
+          {"name": "sMrMrs", "type": "string", "description": "Prefijo (Mr., Mrs., Ms.)"},
+          {"name": "sFName", "type": "string", "required": true, "description": "Nombre"},
+          {"name": "sMI", "type": "string", "description": "Inicial segundo nombre"},
+          {"name": "sLName", "type": "string", "required": true, "description": "Apellido"},
+          {"name": "sCompany", "type": "string", "description": "Empresa"},
+          {"name": "sAddr1", "type": "string", "description": "Dirección 1"},
+          {"name": "sAddr2", "type": "string", "description": "Dirección 2"},
+          {"name": "sCity", "type": "string", "description": "Ciudad"},
+          {"name": "sRegion", "type": "string", "description": "Estado/Región"},
+          {"name": "sPostalCode", "type": "string", "description": "Código postal"},
+          {"name": "sCountry", "type": "string", "description": "País"},
+          {"name": "sPhone", "type": "string", "description": "Teléfono"},
+          {"name": "sMrMrsAlt...sPhoneAlt", "type": "string", "description": "Contacto alternativo (11 campos)"},
+          {"name": "sMrMrsBus...sPhoneBus", "type": "string", "description": "Contacto business (12 campos)"},
+          {"name": "sFax", "type": "string", "description": "Fax"},
+          {"name": "sEmail", "type": "string", "description": "Email"},
+          {"name": "sPager", "type": "string", "description": "Pager"},
+          {"name": "sMobile", "type": "string", "description": "Celular"},
+          {"name": "bCommercial", "type": "boolean", "required": true, "description": "¿Comercial?"},
+          {"name": "bCompanyIsTenant", "type": "boolean", "required": true, "description": "¿Empresa es tenant?"},
+          {"name": "dDOB", "type": "date", "description": "Fecha nacimiento"},
+          {"name": "sTenNote", "type": "string", "description": "Notas"},
+          {"name": "sLicense", "type": "string", "description": "Licencia/RUT"},
+          {"name": "sLicRegion", "type": "string", "description": "Región licencia"},
+          {"name": "sSSN", "type": "string", "description": "SSN"},
+          {"name": "sGateCode", "type": "string", "required": true, "description": "Código acceso gate"}
+        ],
+        "response": {
+          "tables": ["RT", "Tenants"],
+          "RT": {
+            "description": "Resultado de creación",
+            "fields": [
+              {"name": "Ret_Code", "type": "int", "description": "1=éxito"},
+              {"name": "TenantID", "type": "int", "description": "ID del tenant creado", "important": true},
+              {"name": "AccessCode", "type": "string", "description": "Código acceso generado"}
+            ]
+          },
+          "Tenants": {
+            "description": "Datos completos del tenant creado (67 campos)",
+            "key_fields": [
+              {"name": "TenantID", "type": "int", "description": "ID tenant"},
+              {"name": "SiteID", "type": "int", "description": "Site ID"},
+              {"name": "sAccessCode", "type": "string", "description": "Código acceso"},
+              {"name": "sEmail", "type": "string", "description": "Email"},
+              {"name": "bCommercial", "type": "boolean", "description": "¿Comercial?"},
+              {"name": "bOnWaitingList", "type": "boolean", "description": "¿En waiting list?"}
+            ]
+          },
+          "error_codes": {
+            "-1": "Last name and access code required",
+            "-2": "Invalid or duplicate gate code",
+            "-3": "Failed to get tenant data",
+            "-4": "Failed to save tenant update",
+            "-5": "Error calling function",
+            "-6": "General Failure",
+            "-7": "Failed to get tenant schema",
+            "-95": "Invalid TenantID"
+          }
+        }
+      },
+      "MoveInWithDiscount_v4": {
+        "soapAction": "http://tempuri.org/CallCenterWs/CallCenterWs/MoveInWithDiscount_v4",
+        "description": "Ejecuta move-in con pago. REQUIERE monto exacto de MoveInCostRetrieveWithDiscount_v2. Permite keypad zone, time zone, billing frequency.",
+        "params": [
+          {"name": "iTenantID", "type": "int", "required": true, "description": "ID del tenant"},
+          {"name": "sAccessCode", "type": "string", "required": true, "description": "Código acceso/gate"},
+          {"name": "iUnitID", "type": "int", "required": true, "description": "ID de la unidad"},
+          {"name": "dStartDate", "type": "date", "required": true, "description": "Fecha inicio (de MoveInCostRetrieve)"},
+          {"name": "dEndDate", "type": "date", "required": true, "description": "Fecha fin (de MoveInCostRetrieve)"},
+          {"name": "dcPaymentAmount", "type": "decimal", "required": true, "description": "Monto total (de MoveInCostRetrieve)"},
+          {"name": "iCCType", "type": "int", "required": true, "description": "5=MasterCard, 6=VISA, 7=Amex, 8=Discover, 9=Diners"},
+          {"name": "sCCNumber", "type": "string", "description": "Número tarjeta (solo dígitos)"},
+          {"name": "sCVV", "type": "string", "description": "CVV"},
+          {"name": "sMagData", "type": "string", "description": "Datos magnéticos"},
+          {"name": "dCCExpiration", "type": "date", "required": true, "description": "Fecha expiración tarjeta"},
+          {"name": "sBillingName", "type": "string", "description": "Nombre en tarjeta"},
+          {"name": "sBillingAddress", "type": "string", "description": "Dirección facturación"},
+          {"name": "sBillingZip", "type": "string", "description": "Código postal"},
+          {"name": "InsuranceCoverageID", "type": "int", "description": "-999 = ninguno"},
+          {"name": "ConcessionPlanID", "type": "int", "description": "-999 = ninguno"},
+          {"name": "iSource", "type": "int", "required": true, "description": "1=Call Center, 5=Website API"},
+          {"name": "sSource", "type": "string", "description": "Fuente texto"},
+          {"name": "bUsePushRate", "type": "boolean", "required": true, "description": "¿Usar push rate?"},
+          {"name": "iPayMethod", "type": "int", "required": true, "description": "0=Credit Card, 1=Check, 2=Cash, 3=Debit, 4=ACH"},
+          {"name": "sACHRouting", "type": "string", "description": "Routing ACH"},
+          {"name": "sACHAccount", "type": "string", "description": "Cuenta ACH"},
+          {"name": "iAccountType", "type": "int", "description": "1=Consumer Checking, 2=Consumer Savings, 3=Business Checking"},
+          {"name": "iKeypadZoneID", "type": "int", "required": true, "description": "ID zona keypad"},
+          {"name": "iTimeZoneID", "type": "int", "required": true, "description": "ID zona horaria"},
+          {"name": "iBillingFrequency", "type": "int", "required": true, "description": "3=Monthly, 7=28 Day Billing"},
+          {"name": "iWaitingID", "type": "int", "description": "-999 = nuevo, o WaitingListID para convertir reserva"},
+          {"name": "bTestMode", "type": "boolean", "required": true, "description": "True = NO procesa pago real"}
+        ],
+        "response": {
+          "tables": ["RT"],
+          "RT_success": {
+            "Ret_Code": "LedgerID (número positivo)",
+            "iLeaseNum": "Número de lease"
+          },
+          "error_codes": {
+            "-1": "Failed to save move in",
+            "-2": "Unit ID not available",
+            "-3": "Invalid Insurance Coverage ID",
+            "-4": "Unable to get Credit Card Type ID",
+            "-5": "Unable to get payment Type ID",
+            "-11": "Payment amount does not match (recalcular con MoveInCostRetrieve)",
+            "-14": "Credit Card number is invalid",
+            "-17": "Invalid Concession Plan ID",
+            "-20": "Site not setup for Authorize.Net",
+            "-21": "No credit card config for site",
+            "-25": "Invalid unit ID",
+            "-83": "Move in dates cannot exceed 2 months in past",
+            "-84": "Debit requires bTestMode = True",
+            "-95": "Invalid TenantID",
+            "-100": "Credit Card not authorized"
+          }
+        }
+      },
+      "TenantBillingInfoUpdate_v2": {
+        "soapAction": "http://tempuri.org/CallCenterWs/CallCenterWs/TenantBillingInfoUpdate_v2",
+        "description": "Actualiza tarjeta, ACH o preferencias de auto-cobro. Puede modificar expiración/nombre/zip sin cambiar número (pasando valor enmascarado).",
+        "optional": true,
+        "params": [
+          {"name": "iLedgerID", "type": "int", "required": true, "description": "ID del ledger"},
+          {"name": "iCreditCardTypeID", "type": "int", "required": true, "description": "ID tipo tarjeta (de PaymentTypesRetrieve)"},
+          {"name": "sCCNumber", "type": "string", "required": true, "description": "Número o enmascarado (*1234)"},
+          {"name": "dCCExpiration", "type": "date", "required": true, "description": "Fecha expiración"},
+          {"name": "sCCHolderName", "type": "string", "required": true, "description": "Nombre titular"},
+          {"name": "sCCBillingStreet", "type": "string", "required": true, "description": "Dirección facturación"},
+          {"name": "sCCBillingZip", "type": "string", "required": true, "description": "Código postal"},
+          {"name": "iAutoBillType", "type": "int", "required": true, "description": "0=None, 1=Credit Card, 2=ACH"},
+          {"name": "sACHAccountNumber", "type": "string", "required": true, "description": "Cuenta ACH"},
+          {"name": "sACHRoutingNumber", "type": "string", "required": true, "description": "Routing ACH"},
+          {"name": "iACHAccountType", "type": "string", "required": true, "description": "1=Consumer Checking, 2=Consumer Savings, 3=Business Checking"},
+          {"name": "iDaysAfterDue", "type": "int", "required": true, "description": "Días después de vencido para auto-cobrar"}
+        ],
+        "response": {
+          "tables": ["RT"],
+          "RT_success": {"Ret_Code": "LedgerID actualizado (positivo)"},
+          "error_codes": {
+            "-1": "Ledger not found",
+            "-2": "Could not save ledger info",
+            "-95": "Invalid credit card type ID"
+          }
+        }
+      }
+    }
+  }
+}

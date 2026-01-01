@@ -3,8 +3,17 @@
  * Init
  */
 
+// Load environment variables first
+require('dotenv').config()
+
 const express = require('express')
+const cors = require('cors')
 const { URL } = require('url')
+
+// Import new middleware and config
+const config = require('./src/config')
+const { requestLogger } = require('./src/middleware/logger')
+const { errorHandler, notFoundHandler } = require('./src/middleware/errorHandler')
 
 // ++ Express
 const app = express()
@@ -14,6 +23,26 @@ app.set("trust proxy", 1)
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
+// CORS configuration
+const corsOptions = config.app.allowedOrigins
+	? {
+		origin: (origin, callback) => {
+			// Allow requests with no origin (mobile apps, Postman, etc.)
+			if (!origin) return callback(null, true)
+
+			const allowedOrigins = config.app.allowedOrigins
+			if (allowedOrigins.includes(origin)) {
+				callback(null, true)
+			} else {
+				callback(new Error('Not allowed by CORS'))
+			}
+		},
+		credentials: true
+	}
+	: { origin: '*' }
+
+app.use(cors(corsOptions))
+
 let server
 
 /**
@@ -21,10 +50,21 @@ let server
  */
 async function init() {
 
+	// Validate SiteLink configuration
+	try {
+		config.sitelink.validateConfig()
+	} catch (error) {
+		console.error('Failed to validate SiteLink configuration:', error.message)
+		process.exit(1)
+	}
+
 	// start server
-	server = await app.listen(80)
+	server = await app.listen(config.app.port)
 
 	console.log("Init -> server listening", new Date().toLocaleString("es-CL", { timeZone: "America/Santiago" }))
+
+	// Request logger
+	app.use(requestLogger)
 
 	/**
 	 * Express Interceptor
@@ -33,31 +73,10 @@ async function init() {
 
 		if (req.path.match(/health/)) return next()
 
-		// CORS allowed origin
-		if (process.env.ALLOWED_ORIGINS) {
-
-			try {
-
-				const { protocol, host } = new URL(req.get('Origin') || req.get('Referer'))
-				const whitelist = process.env.ALLOWED_ORIGINS.split(',').map(o => new URL(o).host)
-
-				// check Origin header if present
-				if (whitelist.includes(host)) res.set('Access-Control-Allow-Origin', `${protocol}//${host}`), res.set('Vary', 'Origin')
-			}
-			catch (e) { return res.sendStatus(403) }
-		}
-		else res.set('Access-Control-Allow-Origin', '*')
-
-		// CORS allowed headers
-		res.set('Access-Control-Allow-Headers', 'Content-Type, Origin, X-Requested-With, X-Api-Key')
-
-		// for preflight requests
-		if (req.method.match(/OPTIONS/)) return res.sendStatus(200)
-		
-		console.log(`Init -> ${req.path} ${req.originalUrl}`)
-
 		// validate API_KEY
-		if (process.env.API_KEY && process.env.API_KEY != req.get("X-Api-Key")) return res.status(401).json({ status: "error", msg: "unauthorized" })
+		if (config.app.apiKey && config.app.apiKey != req.get("X-Api-Key")) {
+			return res.status(401).json({ status: "error", msg: "unauthorized" })
+		}
 
 		next()
 	})
@@ -68,31 +87,19 @@ async function init() {
 	app.get('*/health', (req, res) => res.sendStatus(200))
 
 	/**
-	 * SiteLink API (modular)
-	 * Routes: /api/sitelink/locations, /units, /reservations, /movein, /insurance, /payments, /esign, /tenants
+	 * SiteLink API Routes
 	 */
-	app.use('*/sitelink', require('./api')())
+	app.use('/', require('./src/routes'))
 
 	/**
-	 * Legacy eSign route (redirect to new path)
-	 * @deprecated Use /api/sitelink/esign instead
+	 * Not Found (must be before error handler)
 	 */
-	app.use('*/esign', (req, res, next) => {
-		// Redirect to new path structure
-		const newPath = req.originalUrl.replace('/esign', '/sitelink/esign')
-		console.log(`Legacy redirect: ${req.originalUrl} -> ${newPath}`)
-		res.redirect(307, newPath)
-	})
+	app.use(notFoundHandler)
 
 	/**
-	 * Not Found
+	 * Error Handler (must be last)
 	 */
-	app.use((req, res, next) => res.status(404).send({ status: "error", msg: "service not found" }))
-
-	/**
-	 * Server error
-	 */
-	app.use((e, req, res, next) => { console.error("Init -> Server Error", e), res.status(500).send({ status: "error", msg: e.toString() }) })
+	app.use(errorHandler)
 }
 
 /**

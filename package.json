@@ -3,9 +3,12 @@
 	"license": "UNLICENSED",
 	"private": true,
 	"scripts": {
+		"dev": "node init.js",
 		"server": "pm2 delete init && pm2 start init.js --watch --ignore-watch='.git/*' && pm2 logs"
 	},
 	"dependencies": {
+		"cors": "^2.8.5",
+		"dotenv": "^16.4.7",
 		"express": "^4.21.2",
 		"soap": "~1.0.0"
 	}
