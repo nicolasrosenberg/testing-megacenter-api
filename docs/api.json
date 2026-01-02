@@ -281,6 +281,77 @@
     },
     "units": {
       "description": "Endpoints para consultar información de unidades",
+      "UnitsInformationByUnitID": {
+        "soapAction": "http://tempuri.org/CallCenterWs/CallCenterWs/UnitsInformationByUnitID",
+        "description": "Obtiene información detallada de una unidad específica por su ID. Incluye datos del tipo de unidad y todas las configuraciones de pricing.",
+        "params": [
+          {"name": "UnitID", "type": "int", "required": true, "description": "ID de la unidad a consultar"}
+        ],
+        "response": {
+          "tables": ["Table", "RT"],
+          "Table": {
+            "description": "Información completa de la unidad (incluye datos de Units y UnitTypes)",
+            "fields": [
+              {"name": "UnitID", "type": "int", "description": "ID de la unidad", "key": true, "important": true},
+              {"name": "SiteID", "type": "int", "description": "Site ID"},
+              {"name": "UnitTypeID", "type": "int", "description": "ID del tipo de unidad"},
+              {"name": "sUnitName", "type": "string", "description": "Nombre de la unidad (ej: 2C05)", "important": true},
+              {"name": "sTypeName", "type": "string", "description": "Nombre del tipo (ej: Locker Unit)", "important": true},
+              {"name": "sUnitDesc", "type": "string", "description": "Descripción de la unidad"},
+              {"name": "dcWidth", "type": "decimal", "description": "Ancho en pies"},
+              {"name": "dcLength", "type": "decimal", "description": "Largo en pies"},
+              {"name": "bClimate", "type": "boolean", "description": "¿Control de clima?"},
+              {"name": "bInside", "type": "boolean", "description": "¿Es interior?"},
+              {"name": "bPower", "type": "boolean", "description": "¿Tiene electricidad?"},
+              {"name": "bAlarm", "type": "boolean", "description": "¿Tiene alarma?"},
+              {"name": "bMobile", "type": "boolean", "description": "¿Es móvil?"},
+              {"name": "bRentable", "type": "boolean", "description": "¿Se puede rentar?", "important": true},
+              {"name": "bRented", "type": "boolean", "description": "¿Está rentada?", "important": true},
+              {"name": "bDamaged", "type": "boolean", "description": "¿Está dañada?"},
+              {"name": "bCorporate", "type": "boolean", "description": "¿Es corporativa?"},
+              {"name": "bExcludeFromWebsite", "type": "boolean", "description": "¿Excluida del sitio web?"},
+              {"name": "bNotReadyToRent", "type": "boolean", "description": "¿No lista para rentar?"},
+              {"name": "iFloor", "type": "int", "description": "Número de piso"},
+              {"name": "iWalkThruOrder", "type": "int", "description": "Orden walk-through"},
+              {"name": "iEntryLoc", "type": "int", "description": "Tipo entrada: 0=Undefined, 1=Exterior, 2=Interior Hallway, 3=Elevator"},
+              {"name": "iDoorType", "type": "int", "description": "Tipo puerta: 0=Undefined, 1=Rollup, 2=Swing"},
+              {"name": "dcPushRate", "type": "decimal", "description": "Tarifa push", "important": true},
+              {"name": "dcStdRate", "type": "decimal", "description": "Tarifa estándar mensual", "important": true},
+              {"name": "dcStdWeeklyRate", "type": "decimal", "description": "Tarifa estándar semanal"},
+              {"name": "dcBoardRate", "type": "decimal", "description": "Tarifa de tablero"},
+              {"name": "dcWebRate", "type": "decimal", "description": "Tarifa web", "important": true},
+              {"name": "dcPreferredRate", "type": "decimal", "description": "Tarifa preferida"},
+              {"name": "iPreferredChannelType", "type": "int", "description": "Canal de tarifa preferida"},
+              {"name": "bPreferredIsPushRate", "type": "boolean", "description": "¿Preferida es push rate?"},
+              {"name": "dcStdSecDep", "type": "decimal", "description": "Depósito de seguridad estándar"},
+              {"name": "dcStdLateFee", "type": "decimal", "description": "Tarifa de mora estándar"},
+              {"name": "dcSchedRateMonthly", "type": "decimal", "description": "Tarifa mensual programada"},
+              {"name": "dcSchedRateWeekly", "type": "decimal", "description": "Tarifa semanal programada"},
+              {"name": "bChargeTax1", "type": "boolean", "description": "¿Cobra impuesto 1?"},
+              {"name": "bChargeTax2", "type": "boolean", "description": "¿Cobra impuesto 2?"},
+              {"name": "dcMapTop", "type": "decimal", "description": "Posición top en mapa"},
+              {"name": "dcMapLeft", "type": "decimal", "description": "Posición left en mapa"},
+              {"name": "dcMapTheta", "type": "decimal", "description": "Rotación en mapa"},
+              {"name": "bMapReversWL", "type": "boolean", "description": "Revertir ancho/largo en mapa"},
+              {"name": "sTrackingCode", "type": "string", "description": "Código de tracking"},
+              {"name": "sRFID", "type": "string", "description": "RFID"},
+              {"name": "sGlobalUnitName", "type": "string", "description": "Nombre global de unidad"},
+              {"name": "sUnitNote", "type": "string", "description": "Notas de la unidad"},
+              {"name": "dUnitNote", "type": "datetime", "description": "Fecha de la nota"},
+              {"name": "dCreated", "type": "datetime", "description": "Fecha creación"},
+              {"name": "dUpdated", "type": "datetime", "description": "Fecha actualización"},
+              {"name": "dDeleted", "type": "datetime", "description": "Fecha eliminación"},
+              {"name": "dBuilt", "type": "datetime", "description": "Fecha construcción"},
+              {"name": "dFirstInService", "type": "datetime", "description": "Primera fecha en servicio"},
+              {"name": "dDamaged", "type": "datetime", "description": "Fecha de daño"}
+            ]
+          },
+          "RT": {
+            "success": {"Ret_Code": 1},
+            "error": {"Ret_Code": "error code", "Ret_Msg": "mensaje de error"}
+          }
+        }
+      },
       "UnitsInformation_v2": {
         "soapAction": "http://tempuri.org/CallCenterWs/CallCenterWs/UnitsInformation_v2",
         "description": "Todas las unidades (disponibles + ocupadas). Usa polling incremental con lngLastTimePolled. Cache recomendado cada 15 min.",

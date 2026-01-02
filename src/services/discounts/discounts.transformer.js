@@ -1,118 +1,12 @@
 /**
- * Transformer Service
+ * Discounts Transformer
  *
- * Transforms SiteLink SOAP responses to clean, frontend-friendly formats
+ * Transforms discount data from SiteLink into clean, frontend-friendly format
  */
 
-const config = require('../config')
-
-/**
- * Parse boolean value from SiteLink
- * @param {any} value - Value to parse
- * @returns {boolean} Boolean value
- */
-function parseBoolean(value) {
-	return value === 'true' || value === true
-}
-
-/**
- * Parse decimal/number from SiteLink
- * @param {any} value - Value to parse
- * @param {number} decimals - Decimal places (default: 2)
- * @returns {number} Parsed number
- */
-function parseDecimal(value, decimals = 2) {
-	const num = parseFloat(value) || 0
-	return Number(num.toFixed(decimals))
-}
-
-/**
- * Parse integer from SiteLink
- * @param {any} value - Value to parse
- * @returns {number} Parsed integer
- */
-function parseInt(value) {
-	return Number.parseInt(value) || 0
-}
-
-/**
- * Transform unit type from UnitTypePriceList_v2
- * @param {object} sitelinkUnit - Raw unit type from SiteLink
- * @returns {object} Transformed unit type
- */
-function transformUnitType(sitelinkUnit) {
-	const width = parseDecimal(sitelinkUnit.dcWidth)
-	const length = parseDecimal(sitelinkUnit.dcLength)
-	const area = parseDecimal(sitelinkUnit.dcArea)
-
-	return {
-		unitTypeId: parseInt(sitelinkUnit.UnitTypeID),
-		typeName: sitelinkUnit.sTypeName || '',
-
-		// Dimensions
-		width,
-		length,
-		area,
-
-		// Display
-		displaySize: `${width}' x ${length}'`,
-		displayArea: `${area} sq ft`,
-
-		// Features
-		features: {
-			climate: parseBoolean(sitelinkUnit.bClimate),
-			inside: parseBoolean(sitelinkUnit.bInside),
-			power: parseBoolean(sitelinkUnit.bPower),
-			alarm: parseBoolean(sitelinkUnit.bAlarm),
-			mobile: parseBoolean(sitelinkUnit.bMobile),
-			floor: parseInt(sitelinkUnit.iFloor)
-		},
-
-		// Pricing
-		pricing: {
-			standard: parseDecimal(sitelinkUnit.dcStdRate),
-			web: parseDecimal(sitelinkUnit.dcWebRate),
-			board: parseDecimal(sitelinkUnit.dcBoardRate),
-			preferred: parseDecimal(sitelinkUnit.dcPreferredRate),
-			preferredChannelType: parseInt(sitelinkUnit.iPreferredChannelType),
-			isPushRate: parseBoolean(sitelinkUnit.bPreferredIsPushRate),
-			adminFee: parseDecimal(sitelinkUnit.dcAdminFee),
-			reservationFee: parseDecimal(sitelinkUnit.dcReservationFee),
-			securityDeposit: parseDecimal(sitelinkUnit.dcStdSecDep)
-		},
-
-		// Availability
-		availability: {
-			total: parseInt(sitelinkUnit.iTotalUnits),
-			occupied: parseInt(sitelinkUnit.iTotalOccupied),
-			vacant: parseInt(sitelinkUnit.iTotalVacant),
-			reserved: parseInt(sitelinkUnit.iTotalReserved)
-		},
-
-		// First available unit
-		firstAvailableUnit: sitelinkUnit.UnitID_FirstAvailable ? {
-			unitId: parseInt(sitelinkUnit.UnitID_FirstAvailable),
-			unitName: sitelinkUnit.sUnitName_FirstAvailable || '',
-			description: sitelinkUnit.sUnitDesc_FirstAvailable || '',
-			isRented: parseBoolean(sitelinkUnit.bRented_FirstAvailable)
-		} : null,
-
-		// Taxes
-		tax: {
-			rate1: parseDecimal(sitelinkUnit.dcTax1Rate_Rent, 4),
-			rate2: parseDecimal(sitelinkUnit.dcTax2Rate_Rent, 4),
-			charge1: parseBoolean(sitelinkUnit.bChargeTax1),
-			charge2: parseBoolean(sitelinkUnit.bChargeTax2)
-		},
-
-		// Discount
-		concessionId: parseInt(sitelinkUnit.ConcessionID) || null,
-
-		// Meta
-		siteId: parseInt(sitelinkUnit.SiteID),
-		excludeFromInsurance: parseBoolean(sitelinkUnit.bExcludeFromInsurance)
-	}
-}
+const config = require('../../config')
+const { parseBoolean, parseDecimal, parseInt } = require('../../utils/parsers')
+const discountsService = require('./discounts.service')
 
 /**
  * Get discount type string from iAmtType
@@ -314,16 +208,119 @@ function isDiscountAvailableOnWebsite(discount) {
 		availableAt === config.AVAILABLE_AT_VALUES.WEBSITE_ONLY
 }
 
+/**
+ * Check if raw discount from SiteLink is available on website
+ * @param {object} discount - Raw discount object from SiteLink
+ * @returns {boolean} True if available on website
+ */
+function isRawDiscountAvailableOnWebsite(discount) {
+	const availableAt = parseInt(discount.iAvailableAt) || 0
+
+	// Check if disabled
+	if (discount.dDisabled !== null && discount.dDisabled !== undefined) {
+		return false
+	}
+
+	// Check if available at website (bit flags: 1=CallCenter, 2=Website, 4=kiosk, etc)
+	return (availableAt & 2) === 2
+}
+
+/**
+ * Get available channels from iAvailableAt flags
+ * @param {number} iAvailableAt - Availability flags
+ * @returns {string[]} Array of channel names
+ */
+function getAvailableChannels(iAvailableAt) {
+	const flags = parseInt(iAvailableAt) || 0
+	const channels = []
+
+	if (flags & 1) channels.push('call_center')
+	if (flags & 2) channels.push('website')
+	if (flags & 4) channels.push('kiosk')
+	if (flags & 8) channels.push('mobile')
+
+	return channels
+}
+
+/**
+ * Transform raw discount plans into clean format
+ * @param {object} rawData - Raw data from DiscountPlansRetrieve
+ * @returns {object} Transformed discount data
+ */
+function transformDiscountPlans(rawData) {
+	if (!rawData || !rawData.data) {
+		return {
+			plans: [],
+			restrictions: {}
+		}
+	}
+
+	const concessionPlans = rawData.data.ConcessionPlans || []
+	const concessionUnitTypes = rawData.data.ConcessionUnitTypes || []
+
+	// Build restrictions map
+	const restrictionsMap = discountsService.buildDiscountRestrictionsMap(
+		concessionUnitTypes
+	)
+
+	// Transform plans
+	const plans = concessionPlans
+		.filter(isRawDiscountAvailableOnWebsite)
+		.map(plan => {
+			const concessionId = parseInt(plan.ConcessionID)
+			const restrictions = restrictionsMap[concessionId] || []
+
+			return {
+				id: concessionId,
+				name: plan.sPlanName || '',
+				description: plan.sDescription || plan.sPlanName || '',
+				comment: plan.sComment || '',
+				type: getDiscountType(plan.iAmtType),
+				value: getDiscountValue(plan),
+				maxAmountOff: parseDecimal(plan.dcMaxAmountOff),
+				duration: {
+					neverExpires: parseBoolean(plan.bNeverExpires),
+					expiresInMonths: parseInt(plan.iExpirMonths),
+					appliesInMonth: parseInt(plan.iInMonth) || 1
+				},
+				prepay: {
+					requiresPrepay: parseBoolean(plan.bPrepay),
+					prepaidMonths: parseInt(plan.iPrePaidMonths)
+				},
+				availability: {
+					channels: getAvailableChannels(plan.iAvailableAt),
+					isCorporate: parseBoolean(plan.bForCorp)
+				},
+				restrictions: {
+					appliesToAllUnits: restrictions.length === 0,
+					unitTypes: restrictions.map(r => ({
+						unitTypeId: r.unitTypeId,
+						width: r.width,
+						length: r.length
+					}))
+				},
+				metadata: {
+					globalNum: parseInt(plan.iConcessionGlobalNum),
+					created: plan.dCreated || null,
+					updated: plan.dUpdated || null
+				}
+			}
+		})
+
+	return {
+		plans,
+		restrictions: restrictionsMap
+	}
+}
+
 module.exports = {
-	parseBoolean,
-	parseDecimal,
-	parseInt,
-	transformUnitType,
-	transformDiscount,
-	calculateEffectivePrice,
-	isDiscountAvailableOnWebsite,
 	getDiscountType,
 	getDiscountValue,
 	generateDiscountDisplayText,
-	generateDiscountExplanation
+	generateDiscountExplanation,
+	transformDiscount,
+	calculateEffectivePrice,
+	isDiscountAvailableOnWebsite,
+	transformDiscountPlans,
+	getAvailableChannels
 }

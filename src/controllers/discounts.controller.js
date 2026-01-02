@@ -4,8 +4,8 @@
  * Handles HTTP requests for discounts
  */
 
-const discountsService = require('../services/sitelink/discounts.service')
-const discountsTransformer = require('../services/discounts.transformer')
+const discountsService = require('../services/discounts/discounts.service')
+const discountsTransformer = require('../services/discounts/discounts.transformer')
 
 /**
  * Get discounts for location

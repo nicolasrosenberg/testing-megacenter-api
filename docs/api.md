@@ -284,6 +284,114 @@ Obtiene los planes de seguro disponibles para el sitio.
 
 ## Endpoints de Units (Consulta de Unidades)
 
+### UnitsInformationByUnitID
+
+Obtiene información detallada de una unidad específica por su ID. Retorna todos los datos de la unidad incluyendo pricing, características, ubicación y datos del tipo de unidad.
+
+**SOAPAction:** `http://tempuri.org/CallCenterWs/CallCenterWs/UnitsInformationByUnitID`
+
+**Parámetros adicionales:**
+
+| Campo    | Tipo    | Requerido | Descripción              |
+| -------- | ------- | --------- | ------------------------ |
+| `UnitID` | Integer | Sí        | ID de la unidad a buscar |
+
+**Request:**
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
+  <soap12:Body>
+    <UnitsInformationByUnitID xmlns="http://tempuri.org/CallCenterWs/CallCenterWs">
+      <sCorpCode>CDRH</sCorpCode>
+      <sLocationCode>L012</sLocationCode>
+      <sCorpUserName>Andres Schilkrut:::MEGACENTER9J348FCJ3U</sCorpUserName>
+      <sCorpPassword>Laperla16699@@</sCorpPassword>
+      <UnitID>79081</UnitID>
+    </UnitsInformationByUnitID>
+  </soap12:Body>
+</soap12:Envelope>
+```
+
+**Response:** DataSet con dos tablas: "Table" y "RT"
+
+**Tabla "Table"** (una row con la información completa de la unidad):
+
+| Campo                     | Tipo     | Descripción                                             |
+| ------------------------- | -------- | ------------------------------------------------------- |
+| `UnitID`                  | Integer  | **ID de la unidad**                                     |
+| `SiteID`                  | Integer  | Site ID                                                 |
+| `UnitTypeID`              | Integer  | ID del tipo de unidad                                   |
+| `sUnitName`               | String   | **Nombre de la unidad** (ej: "2C05")                    |
+| `sTypeName`               | String   | **Nombre del tipo** (ej: "Locker Unit")                 |
+| `sUnitDesc`               | String   | Descripción de la unidad                                |
+| `dcWidth`                 | Decimal  | Ancho en pies                                           |
+| `dcLength`                | Decimal  | Largo en pies                                           |
+| `bClimate`                | Boolean  | ¿Control de clima?                                      |
+| `bInside`                 | Boolean  | ¿Es interior?                                           |
+| `bPower`                  | Boolean  | ¿Tiene electricidad?                                    |
+| `bAlarm`                  | Boolean  | ¿Tiene alarma?                                          |
+| `bMobile`                 | Boolean  | ¿Es móvil?                                              |
+| `bRentable`               | Boolean  | **¿Se puede rentar?**                                   |
+| `bRented`                 | Boolean  | **¿Está rentada?**                                      |
+| `bDamaged`                | Boolean  | ¿Está dañada?                                           |
+| `bCorporate`              | Boolean  | ¿Es corporativa?                                        |
+| `bExcludeFromWebsite`     | Boolean  | ¿Excluida del sitio web?                                |
+| `bNotReadyToRent`         | Boolean  | ¿No lista para rentar?                                  |
+| `iFloor`                  | Integer  | Número de piso                                          |
+| `iWalkThruOrder`          | Integer  | Orden walk-through                                      |
+| `iEntryLoc`               | Integer  | Tipo entrada (0-3)                                      |
+| `iDoorType`               | Integer  | Tipo puerta (0-2)                                       |
+| `dcPushRate`              | Decimal  | **Tarifa push**                                         |
+| `dcStdRate`               | Decimal  | **Tarifa estándar mensual**                             |
+| `dcStdWeeklyRate`         | Decimal  | Tarifa estándar semanal                                 |
+| `dcBoardRate`             | Decimal  | Tarifa de tablero                                       |
+| `dcWebRate`               | Decimal  | **Tarifa web**                                          |
+| `dcPreferredRate`         | Decimal  | Tarifa preferida                                        |
+| `iPreferredChannelType`   | Integer  | Canal de tarifa preferida                               |
+| `bPreferredIsPushRate`    | Boolean  | ¿Preferida es push rate?                                |
+| `dcStdSecDep`             | Decimal  | Depósito de seguridad estándar                          |
+| `dcStdLateFee`            | Decimal  | Tarifa de mora estándar                                 |
+| `dcSchedRateMonthly`      | Decimal  | Tarifa mensual programada                               |
+| `dcSchedRateWeekly`       | Decimal  | Tarifa semanal programada                               |
+| `bChargeTax1`             | Boolean  | ¿Cobra impuesto 1?                                      |
+| `bChargeTax2`             | Boolean  | ¿Cobra impuesto 2?                                      |
+| `dcMapTop`                | Decimal  | Posición top en mapa                                    |
+| `dcMapLeft`               | Decimal  | Posición left en mapa                                   |
+| `dcMapTheta`              | Decimal  | Rotación en mapa                                        |
+| `bMapReversWL`            | Boolean  | Revertir ancho/largo en mapa                            |
+| `sTrackingCode`           | String   | Código de tracking                                      |
+| `sRFID`                   | String   | RFID                                                    |
+| `sGlobalUnitName`         | String   | Nombre global de unidad                                 |
+| `sUnitNote`               | String   | Notas de la unidad                                      |
+| `dUnitNote`               | DateTime | Fecha de la nota                                        |
+| `dCreated`                | DateTime | Fecha creación                                          |
+| `dUpdated`                | DateTime | Fecha actualización                                     |
+| `dDeleted`                | DateTime | Fecha eliminación                                       |
+| `dBuilt`                  | DateTime | Fecha construcción                                      |
+| `dFirstInService`         | DateTime | Primera fecha en servicio                               |
+| `dDamaged`                | DateTime | Fecha de daño                                           |
+| _Campos de Unit Type_     |          |                                                         |
+| `sDefTypeName`            | String   | Nombre default del tipo                                 |
+| `sCategory`               | String   | Categoría                                               |
+| `iDefLeaseNum`            | Integer  | Número de lease default                                 |
+| `bExcludeFromInsurance`   | Boolean  | ¿Excluido de seguro?                                    |
+| `bShowOnReservations`     | Boolean  | ¿Mostrar en reservaciones?                              |
+| `iVacateNoticeDays`       | Integer  | Días de aviso para desocupar                            |
+| `iInsuranceRequired`      | Integer  | Nivel de seguro requerido                               |
+| `BillingFreqID_Default`   | Integer  | ID de frecuencia de cobro default                       |
+| `DefaultCoverageID`       | Integer  | ID de cobertura default                                 |
+| `bWaitingListReserved`    | Boolean  | ¿Reservada en waiting list?                             |
+
+**Tabla "RT":**
+
+- Éxito: `Ret_Code = 1`
+- Error: `Ret_Code` = código de error, `Ret_Msg` = mensaje
+
+**Caso de uso:** Obtener toda la información de una unidad específica para mostrar detalles completos al usuario o para verificar disponibilidad y pricing de una unidad en particular.
+
+---
+
 ### UnitsInformation_v2
 
 Obtiene información de TODAS las unidades (disponibles y ocupadas). Usa polling incremental para reducir bandwidth.

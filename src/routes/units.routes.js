@@ -16,4 +16,11 @@ const { asyncHandler } = require('../middleware/errorHandler')
  */
 router.get('/', asyncHandler(unitsController.getUnitsGrouped))
 
+/**
+ * GET /:location/units/:id
+ *
+ * Get detailed information for a specific unit by ID
+ */
+router.get('/:id', asyncHandler(unitsController.getUnitById))
+
 module.exports = router

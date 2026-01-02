@@ -4,7 +4,7 @@
  * SOAP methods related to discounts and concessions
  */
 
-const client = require('./client')
+const client = require('../shared/client')
 const config = require('../../config')
 
 /**

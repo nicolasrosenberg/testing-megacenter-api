@@ -159,19 +159,8 @@ async function callMethod(
 	}
 }
 
-/**
- * List all available methods in a SOAP client
- * @param {string} clientType - 'callCenter' or 'reporting'
- * @returns {Promise<object>} WSDL description
- */
-async function listMethods(clientType = 'callCenter') {
-	const client = await getClient(clientType)
-	return client.describe()
-}
-
 module.exports = {
 	getClient,
 	parseResponse,
-	callMethod,
-	listMethods
+	callMethod
 }
