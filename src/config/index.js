@@ -22,7 +22,6 @@ module.exports = {
 	app: {
 		port: process.env.PORT || 80,
 		env: process.env.NODE_ENV || 'development',
-		allowedOrigins: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : null,
-		apiKey: process.env.API_KEY || null
+		allowedOrigins: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : null
 	}
 }

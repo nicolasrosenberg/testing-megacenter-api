@@ -106,9 +106,11 @@ El servidor estará disponible en `http://localhost:80`
 
 ### Nuevo Flujo (v2.0)
 
-#### **GET** `/api/sitelink/units/grouped`
+#### **GET** `/:location/units`
 
 Obtiene unidades agrupadas por tamaño y tipo, con descuentos aplicados.
+
+**Nota:** Reemplaza `:location` con `brickell`, `demo`, `memorial`, o `willowbrook`
 
 **Implementa el flujo completo de `docs/API-INVENTORY-FLOW.md`:**
 - ✅ Fetch paralelo de UnitTypePriceList + DiscountPlans
@@ -118,8 +120,11 @@ Obtiene unidades agrupadas por tamaño y tipo, con descuentos aplicados.
 - ✅ Cálculo de precio efectivo con descuentos
 - ✅ Descuentos comunes vs individuales
 
-**Query Parameters:**
-- `locationCode` (opcional) - Código de ubicación
+**Ejemplo de URL:**
+```
+GET /brickell/units
+GET /demo/units
+```
 
 **Response:**
 
@@ -164,6 +169,184 @@ Obtiene unidades agrupadas por tamaño y tipo, con descuentos aplicados.
       "minPriceWithDiscount": 17,
       "totalAvailable": 28
     }
+  ]
+}
+```
+
+---
+
+#### **GET** `/:location/units/:id`
+
+Obtiene información detallada de una unidad específica con descuentos aplicables.
+
+**Parámetros de URL:**
+- `:location` - Ubicación (brickell, demo, memorial, willowbrook)
+- `:id` - ID de la unidad
+
+**Ejemplo de URL:**
+```
+GET /brickell/units/40680
+GET /demo/units/40680
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "unitId": 40680,
+    "unitName": "2C05",
+    "unitTypeId": 1234,
+    "typeName": "Locker Unit",
+    "dimensions": {
+      "width": 5,
+      "length": 5,
+      "area": 25
+    },
+    "features": {
+      "climate": true,
+      "inside": true,
+      "power": false,
+      "alarm": true,
+      "floor": 2
+    },
+    "pricing": {
+      "standard": 50,
+      "web": 45,
+      "effectiveMonthly": 40
+    },
+    "availability": {
+      "rentable": true,
+      "rented": false,
+      "reserved": false
+    },
+    "discount": {
+      "concessionId": 8183,
+      "name": "1 MONTH FREE",
+      "type": "percentage_off",
+      "value": 100,
+      "displayText": "1ST MONTH FREE",
+      "color": "red"
+    },
+    "applicableDiscounts": [...]
+  }
+}
+```
+
+---
+
+#### **GET** `/:location/discounts`
+
+Obtiene todos los planes de descuento disponibles para una ubicación.
+
+**Ejemplo de URL:**
+```
+GET /brickell/discounts
+GET /demo/discounts
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "concessionId": 8183,
+      "name": "1 MONTH FREE",
+      "description": "Get your first month free",
+      "type": "percentage_off",
+      "value": 100,
+      "displayText": "1ST MONTH FREE",
+      "appliesToMonth": 1,
+      "availableAt": "website",
+      "color": "red"
+    }
+  ]
+}
+```
+
+---
+
+#### **POST** `/:location/reservations`
+
+Crea una nueva reservación (tenant + waiting list entry).
+
+**Ejemplo de URL:**
+```
+POST /brickell/reservations
+POST /demo/reservations
+```
+
+**Request Body:**
+
+```json
+{
+  "unitId": 40680,
+  "firstName": "Juan",
+  "lastName": "Pérez",
+  "email": "juan.perez@example.com",
+  "phone": "+1234567890",
+  "moveInDate": "2026-02-15T00:00:00Z",
+  "comment": "Planeo quedarme 3-6 meses",
+  "address": "123 Main Street",
+  "city": "Miami",
+  "state": "FL",
+  "zipCode": "33131",
+  "concessionId": -999
+}
+```
+
+**Campos Requeridos:**
+- `unitId` (number) - ID de la unidad
+- `firstName` (string) - Nombre del cliente
+- `lastName` (string) - Apellido del cliente
+- `email` (string) - Email válido
+- `phone` (string) - Teléfono
+- `moveInDate` (string) - Fecha ISO 8601
+
+**Campos Opcionales:**
+- `comment` (string) - Comentarios adicionales
+- `address`, `city`, `state`, `zipCode` (string) - Dirección del cliente
+- `concessionId` (number) - ID del descuento (-999 = sin descuento)
+
+**Response (201 Created):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "tenantId": 98765,
+    "reservationId": 54321,
+    "accessCode": "1234",
+    "globalWaitingNum": "W-2026-001",
+    "message": "Reservation created successfully. Your access code is 1234",
+    "details": {
+      "nextSteps": [
+        "You will receive a confirmation email shortly",
+        "You can complete your move-in online or visit us in person",
+        "Your access code will be activated after move-in is completed"
+      ]
+    }
+  }
+}
+```
+
+**Validaciones:**
+- Email debe tener formato válido
+- Fecha debe ser válida (formato ISO 8601)
+- Phone se normaliza automáticamente (elimina espacios, guiones)
+
+**Error Response (400 Bad Request):**
+
+```json
+{
+  "success": false,
+  "error": "Validation failed",
+  "details": [
+    "email is required and must be a valid email address",
+    "moveInDate is required and must be a valid ISO date string"
   ]
 }
 ```
@@ -361,10 +544,29 @@ Si no se configura, permite todos los orígenes (`*`).
 
 ## 🧪 Testing
 
-### Probar endpoint de unidades agrupadas
+### Probar endpoints principales
 
 ```bash
-curl http://localhost/api/sitelink/units/grouped
+# Obtener unidades agrupadas
+curl http://localhost/brickell/units
+
+# Obtener unidad específica
+curl http://localhost/brickell/units/40680
+
+# Obtener descuentos
+curl http://localhost/brickell/discounts
+
+# Crear reservación
+curl -X POST http://localhost/brickell/reservations \
+  -H "Content-Type: application/json" \
+  -d '{
+    "unitId": 40680,
+    "firstName": "Juan",
+    "lastName": "Pérez",
+    "email": "juan@example.com",
+    "phone": "+1234567890",
+    "moveInDate": "2026-02-15T00:00:00Z"
+  }'
 ```
 
 ### Cambiar a modo demo

@@ -14,14 +14,27 @@ const { URL } = require('url')
 const config = require('./src/config')
 const { requestLogger } = require('./src/middleware/logger')
 const { errorHandler, notFoundHandler } = require('./src/middleware/errorHandler')
+const { helmetConfig, sanitizeInputs, configureTrustProxy } = require('./src/middleware/security')
+const { generalLimiter } = require('./src/middleware/rateLimiter')
 
 // ++ Express
 const app = express()
-// trust proxy (AWS ALB)
-app.set("trust proxy", 1)
 
-app.use(express.json())
-app.use(express.urlencoded({ extended: true }))
+// Configure trust proxy securely
+configureTrustProxy(app)
+
+// Security headers (helmet) - debe ir primero
+app.use(helmetConfig)
+
+// Parse JSON and URL-encoded bodies
+app.use(express.json({ limit: '10mb' })) // Limitar tamaño de payload
+app.use(express.urlencoded({ extended: true, limit: '10mb' }))
+
+// Sanitize inputs para prevenir XSS
+app.use(sanitizeInputs)
+
+// Rate limiting general
+app.use(generalLimiter)
 
 // CORS configuration
 const corsOptions = config.app.allowedOrigins
@@ -65,21 +78,6 @@ async function init() {
 
 	// Request logger
 	app.use(requestLogger)
-
-	/**
-	 * Express Interceptor
-	 */
-	app.use((req, res, next) => {
-
-		if (req.path.match(/health/)) return next()
-
-		// validate API_KEY
-		if (config.app.apiKey && config.app.apiKey != req.get("X-Api-Key")) {
-			return res.status(401).json({ status: "error", msg: "unauthorized" })
-		}
-
-		next()
-	})
 
 	/**
 	 * GET - Health check

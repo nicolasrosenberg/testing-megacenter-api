@@ -59,12 +59,10 @@ function parseResponse(rawResponse) {
 				hasError = retCode < 0
 			}
 
-			// Extract actual data tables (exclude RT)
+			// Extract actual data tables (include RT for access to all fields)
 			data = {}
 			for (const key in newDataSet) {
-				if (key !== 'RT') {
-					data[key] = newDataSet[key]
-				}
+				data[key] = newDataSet[key]
 			}
 
 			// If only RT exists, use Ret_Msg as data
