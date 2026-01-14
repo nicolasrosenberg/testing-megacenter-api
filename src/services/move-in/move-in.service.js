@@ -21,6 +21,7 @@ const {
 	convertExpirationDateToISO,
 	buildBillingName,
 } = require("./move-in.helpers");
+const { getLocationSlug } = require("../../config/locations");
 
 /**
  * Validate unit availability and discount in one call
@@ -363,11 +364,24 @@ async function processMoveIn(data, locationCode) {
 		ledgerId: moveInResult.ledgerId,
 	});
 
+	// Extract first charge for move-in date
+	const firstCharge =
+		costResult.charges.find((c) => c.isRequiredAtMoveIn) ||
+		costResult.charges[0];
+
+	// Build dynamic return URL with location slug and moveInDate
+	const locationSlug = getLocationSlug(locationCode);
+	if (!locationSlug) {
+		throw new ValidationError(`Invalid location code: ${locationCode}`);
+	}
+	const baseUrl = process.env.ESIGN_RETURN_BASE_URL || 'http://localhost:3000';
+	const returnUrl = `${baseUrl}/storage/${locationSlug}/rent/sign-complete?moveInDate=${firstCharge.startDate}`;
+
 	const eSignResult = await createESignLeaseUrl(
 		{
 			tenantId: tenantResult.tenantId,
 			ledgerId: moveInResult.ledgerId,
-			returnUrl: ESIGN_CONFIG.RETURN_URL,
+			returnUrl,
 			formIds: ESIGN_CONFIG.FORM_IDS,
 		},
 		locationCode
@@ -379,11 +393,6 @@ async function processMoveIn(data, locationCode) {
 		tenantId: tenantResult.tenantId,
 		ledgerId: moveInResult.ledgerId,
 	});
-
-	// Extract first charge for move-in date
-	const firstCharge =
-		costResult.charges.find((c) => c.isRequiredAtMoveIn) ||
-		costResult.charges[0];
 
 	return {
 		ledgerId: moveInResult.ledgerId,

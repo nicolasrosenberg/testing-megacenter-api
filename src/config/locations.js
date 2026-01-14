@@ -37,9 +37,20 @@ function getLocationSlugs() {
 	return Object.keys(LOCATIONS);
 }
 
+/**
+ * Get location slug from location code
+ * @param {string} locationCode - Location code (L010, L012, etc.)
+ * @returns {string|null} Location slug or null if not found
+ */
+function getLocationSlug(locationCode) {
+	const entry = Object.entries(LOCATIONS).find(([, code]) => code === locationCode);
+	return entry ? entry[0] : null;
+}
+
 module.exports = {
 	LOCATIONS,
 	getLocationCode,
+	getLocationSlug,
 	isValidLocation,
 	getLocationSlugs,
 };
