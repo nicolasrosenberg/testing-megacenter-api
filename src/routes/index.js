@@ -16,7 +16,7 @@ const discountsRoutes = require('./discounts.routes')
 const insuranceRoutes = require('./insurance.routes')
 const reservationsRoutes = require('./reservations.routes')
 const costRoutes = require('./cost.routes')
-const paymentsRoutes = require('./payments.routes')
+const moveInRoutes = require('./move-in.routes')
 
 /**
  * Health check / API info
@@ -46,8 +46,8 @@ router.get('/', (req, res) => {
 			cost: {
 				'POST /:location/cost/calculate': 'Calculate move-in cost with discounts and insurance (WebRate channel)'
 			},
-			payments: {
-				'POST /:location/payments/process': 'Process payment and execute move-in with validations'
+			moveIn: {
+				'POST /:location/move-in/process': 'Process move-in and execute payment with validations'
 			}
 		},
 		example: {
@@ -67,6 +67,6 @@ router.use('/:location/discounts', discountsRoutes)
 router.use('/:location/insurance', insuranceRoutes)
 router.use('/:location/reservations', reservationsRoutes)
 router.use('/:location/cost', costRoutes)
-router.use('/:location/payments', paymentsRoutes)
+router.use('/:location/move-in', moveInRoutes)
 
 module.exports = router

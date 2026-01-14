@@ -12,6 +12,8 @@ const {
 	getSiteLinkErrorMessage
 } = require('../utils/errors')
 
+const { error: formatError, ERROR_CODES } = require('../utils/response')
+
 /**
  * Main error handler middleware
  * Must be registered AFTER all routes
@@ -35,59 +37,81 @@ function errorHandler(err, req, res, next) {
 
 	// Handle SiteLink errors
 	if (err.isSiteLinkError || err.retCode) {
-		return res.status(err.statusCode || 500).json({
-			status: 'error',
-			message: getSiteLinkErrorMessage(err.retCode) || err.message,
-			retCode: err.retCode,
-			retMsg: err.retMsg,
-			...(process.env.NODE_ENV !== 'production' && { stack: err.stack })
-		})
+		return res.status(err.statusCode || 500).json(
+			formatError(
+				ERROR_CODES.SITELINK_ERROR,
+				getSiteLinkErrorMessage(err.retCode) || err.message,
+				{
+					retCode: err.retCode,
+					retMsg: err.retMsg,
+					stack: err.stack
+				}
+			)
+		)
 	}
 
 	// Handle validation errors
 	if (err.isValidationError) {
-		return res.status(400).json({
-			status: 'error',
-			message: err.message,
-			field: err.field,
-			...(process.env.NODE_ENV !== 'production' && { stack: err.stack })
-		})
+		return res.status(400).json(
+			formatError(
+				ERROR_CODES.VALIDATION_ERROR,
+				err.message,
+				{
+					field: err.field,
+					stack: err.stack
+				}
+			)
+		)
 	}
 
 	// Handle not found errors
 	if (err.isNotFoundError) {
-		return res.status(404).json({
-			status: 'error',
-			message: err.message,
-			...(process.env.NODE_ENV !== 'production' && { stack: err.stack })
-		})
+		return res.status(404).json(
+			formatError(
+				ERROR_CODES.NOT_FOUND,
+				err.message,
+				{
+					stack: err.stack
+				}
+			)
+		)
 	}
 
 	// Handle custom API errors
 	if (err instanceof APIError) {
-		return res.status(err.statusCode).json({
-			status: 'error',
-			message: err.message,
-			...(process.env.NODE_ENV !== 'production' && { stack: err.stack })
-		})
+		return res.status(err.statusCode).json(
+			formatError(
+				ERROR_CODES.BAD_REQUEST,
+				err.message,
+				{
+					stack: err.stack
+				}
+			)
+		)
 	}
 
 	// Handle SOAP/network errors
 	if (err.code === 'ECONNREFUSED' || err.code === 'ETIMEDOUT') {
-		return res.status(503).json({
-			status: 'error',
-			message: 'SiteLink service temporarily unavailable. Please try again.'
-		})
+		return res.status(503).json(
+			formatError(
+				ERROR_CODES.SERVICE_UNAVAILABLE,
+				'SiteLink service temporarily unavailable. Please try again.'
+			)
+		)
 	}
 
 	// Default error (500)
-	res.status(err.statusCode || 500).json({
-		status: 'error',
-		message: process.env.NODE_ENV === 'production'
-			? 'Internal server error'
-			: err.message,
-		...(process.env.NODE_ENV !== 'production' && { stack: err.stack })
-	})
+	res.status(err.statusCode || 500).json(
+		formatError(
+			ERROR_CODES.INTERNAL_ERROR,
+			process.env.NODE_ENV === 'production'
+				? 'Internal server error'
+				: err.message,
+			{
+				stack: err.stack
+			}
+		)
+	)
 }
 
 /**
@@ -95,11 +119,12 @@ function errorHandler(err, req, res, next) {
  * Register before error handler but after all routes
  */
 function notFoundHandler(req, res, next) {
-	res.status(404).json({
-		status: 'error',
-		message: 'Endpoint not found',
-		path: req.path
-	})
+	res.status(404).json(
+		formatError(
+			ERROR_CODES.ENDPOINT_NOT_FOUND,
+			`Endpoint not found: ${req.path}`
+		)
+	)
 }
 
 /**

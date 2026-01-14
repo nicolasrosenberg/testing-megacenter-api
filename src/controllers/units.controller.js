@@ -10,6 +10,7 @@ const unitsAggregator = require('../services/units/units.aggregator')
 const unitsHelper = require('../services/units/units.helper')
 const config = require('../config')
 const { logInfo } = require('../middleware/logger')
+const { success } = require('../utils/response')
 
 /**
  * Get Units Grouped by Size and Type
@@ -52,10 +53,7 @@ async function getUnitsGrouped(req, res) {
 		totalGroups: result.length
 	})
 
-	res.json({
-		success: true,
-		data: result
-	})
+	res.json(success(result))
 }
 
 /**
@@ -75,10 +73,7 @@ async function getUnitById(req, res) {
 	// Use helper to validate and get unit with discounts
 	const result = await unitsHelper.validateAndGetUnitWithDiscounts(unitId, locationCode, true)
 
-	res.json({
-		success: true,
-		data: result
-	})
+	res.json(success(result))
 }
 
 module.exports = {

@@ -7,6 +7,7 @@
 const reservationsService = require('../services/reservations/reservations.service')
 const reservationsTransformer = require('../services/reservations/reservations.transformer')
 const { logInfo, logError } = require('../middleware/logger')
+const { success, error: formatError, ERROR_CODES } = require('../utils/response')
 
 /**
  * Create Reservation
@@ -45,10 +46,7 @@ async function createReservation(req, res) {
 			reservationId: result.reservationId
 		})
 
-		res.status(201).json({
-			success: true,
-			data: response
-		})
+		res.status(201).json(success(response))
 
 	} catch (error) {
 		// Handle validation errors
@@ -57,11 +55,13 @@ async function createReservation(req, res) {
 				errors: error.errors
 			})
 
-			return res.status(400).json({
-				success: false,
-				error: 'Validation failed',
-				details: error.errors
-			})
+			return res.status(400).json(
+				formatError(
+					ERROR_CODES.VALIDATION_ERROR,
+					'Validation failed',
+					{ details: error.errors }
+				)
+			)
 		}
 
 		// Re-throw other errors to be handled by error middleware

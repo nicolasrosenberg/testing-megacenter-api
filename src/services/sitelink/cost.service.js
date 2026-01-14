@@ -39,12 +39,9 @@ async function retrieveMoveInCost(
 		(charge) =>
 			charge.bMoveInRequired === true || charge.bMoveInRequired === "true"
 	);
+
 	const totalMoveIn = moveInCharges.reduce((sum, charge) => {
-		return (
-			sum +
-			(parseFloat(charge.dcTotal) || 0) +
-			(parseFloat(charge.TaxAmount) || 0)
-		);
+		return sum + (parseFloat(charge.dcTotal) || 0);
 	}, 0);
 
 	// Calcular total de descuentos aplicados
@@ -106,6 +103,73 @@ async function retrieveMoveInCost(
 	};
 }
 
+/**
+ * Configura autopay para un ledger usando TenantBillingInfoUpdate_v2
+ * Guarda la información de tarjeta de crédito completa para pagos automáticos
+ * Cobra automáticamente el día del vencimiento (daysAfterDue = 0)
+ *
+ * @param {Object} params - Parámetros del autopay
+ * @param {number} params.ledgerId - ID del ledger (retornado por move-in)
+ * @param {number} params.creditCardType - Tipo de tarjeta (5=MC, 6=VISA, 7=Amex, 8=Discover)
+ * @param {string} params.creditCardNumber - Número de tarjeta COMPLETO (no masked)
+ * @param {string} params.creditCardExpirationDate - Fecha de expiración (ISO 8601)
+ * @param {string} params.billingName - Nombre en la tarjeta
+ * @param {string} params.billingAddress - Dirección de facturación
+ * @param {string} params.billingZipCode - Código postal
+ * @param {string} [locationCode=null] - Location code override
+ * @returns {Promise<Object>} Resultado de la configuración
+ */
+async function setupAutopay(
+	{
+		ledgerId,
+		creditCardType,
+		creditCardNumber,
+		creditCardExpirationDate,
+		billingName,
+		billingAddress,
+		billingZipCode,
+	},
+	locationCode = null
+) {
+	const params = {
+		iLedgerID: ledgerId,
+		iCreditCardTypeID: creditCardType,
+		sCreditCardNum: creditCardNumber, // Número completo para guardar autopay
+		dCredtiCardExpir: creditCardExpirationDate,
+		sCreditCardHolderName: billingName,
+		sCreditCardStreet: billingAddress,
+		sCreditCardZip: billingZipCode,
+		iAutoBillType: 1, // 1 = Credit Card
+		sACH_CheckWriterAcctNum: "",
+		sACH_ABA_RoutingNum: "",
+		sACH_Check_SavingsCode: "",
+		iDaysAfterDue: 0, // Cobrar el día del vencimiento
+	};
+
+	const result = await callMethod(
+		"TenantBillingInfoUpdate_v2",
+		params,
+		"callCenter",
+		locationCode
+	);
+
+	// retCode > 0 significa que el LedgerID fue actualizado exitosamente
+	if (result.retCode <= 0) {
+		throw new Error(
+			`Failed to setup autopay: ${
+				result.retMsg || "Unknown error"
+			} (Code: ${result.retCode})`
+		);
+	}
+
+	return {
+		ledgerId: result.retCode,
+		success: true,
+		message: "Autopay configured successfully",
+	};
+}
+
 module.exports = {
 	retrieveMoveInCost,
+	setupAutopay,
 };

@@ -6,6 +6,7 @@
 
 const insuranceService = require('../services/insurance/insurance.service')
 const insuranceTransformer = require('../services/insurance/insurance.transformer')
+const { success } = require('../utils/response')
 
 /**
  * Get insurance plans for location
@@ -17,11 +18,15 @@ async function getInsurance(req, res) {
 	const rawData = await insuranceService.getInsurancePlans(locationCode)
 	const transformed = insuranceTransformer.transformInsurancePlans(rawData)
 
-	res.json({
-		location: req.params.location,
-		locationCode: locationCode,
-		...transformed
-	})
+	res.json(
+		success(
+			transformed,
+			{
+				location: req.params.location,
+				locationCode: locationCode
+			}
+		)
+	)
 }
 
 module.exports = {

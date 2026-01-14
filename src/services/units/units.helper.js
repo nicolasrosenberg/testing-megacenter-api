@@ -184,9 +184,7 @@ async function validateDiscount(concessionId, unitInfo, locationCode) {
 	const discountsResponse = await discountsService.getDiscountPlans(
 		locationCode
 	);
-	console.log("|||||||||||||||||||||||");
-	console.log(discountsResponse);
-	console.log("|||||||||||||||||||||||");
+
 	const discountPlans = discountsResponse.data?.Concession || [];
 	const concessionUnitTypes =
 		discountsResponse.data?.ConcessionUnitTypes || [];

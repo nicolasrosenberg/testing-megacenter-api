@@ -6,6 +6,7 @@
 
 const discountsService = require('../services/discounts/discounts.service')
 const discountsTransformer = require('../services/discounts/discounts.transformer')
+const { success } = require('../utils/response')
 
 /**
  * Get discounts for location
@@ -17,11 +18,15 @@ async function getDiscounts(req, res) {
 	const rawData = await discountsService.getDiscountPlans(locationCode)
 	const transformed = discountsTransformer.transformDiscountPlans(rawData)
 
-	res.json({
-		location: req.params.location,
-		locationCode: locationCode,
-		...transformed
-	})
+	res.json(
+		success(
+			transformed,
+			{
+				location: req.params.location,
+				locationCode: locationCode
+			}
+		)
+	)
 }
 
 module.exports = {

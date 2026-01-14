@@ -1,5 +1,6 @@
 const { retrieveMoveInCost } = require('../services/sitelink/cost.service');
 const { ValidationError } = require('../utils/errors');
+const { success } = require('../utils/response');
 
 /**
  * POST /:location/cost/calculate
@@ -50,10 +51,7 @@ async function calculateMoveInCost(req, res, next) {
 
     const costBreakdown = await retrieveMoveInCost(params, locationCode);
 
-    res.json({
-      success: true,
-      data: costBreakdown
-    });
+    res.json(success(costBreakdown));
   } catch (error) {
     next(error);
   }
