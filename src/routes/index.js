@@ -17,6 +17,7 @@ const insuranceRoutes = require('./insurance.routes')
 const reservationsRoutes = require('./reservations.routes')
 const costRoutes = require('./cost.routes')
 const moveInRoutes = require('./move-in.routes')
+const formsRoutes = require('./forms.routes')
 
 /**
  * Health check / API info
@@ -48,6 +49,9 @@ router.get('/', (req, res) => {
 			},
 			moveIn: {
 				'POST /:location/move-in/process': 'Process move-in and execute payment with validations'
+			},
+			forms: {
+				'POST /forms': 'Submit form to CRM (general or book office tour)'
 			}
 		},
 		example: {
@@ -56,6 +60,11 @@ router.get('/', (req, res) => {
 		}
 	})
 })
+
+/**
+ * Forms routes (no location required)
+ */
+router.use('/forms', formsRoutes)
 
 /**
  * Location-based routes
