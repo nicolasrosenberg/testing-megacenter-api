@@ -79,7 +79,7 @@ const DEFAULTS = {
  * E-Sign configuration
  */
 const ESIGN_CONFIG = {
-	RETURN_URL: process.env.ESIGN_RETURN_URL || 'http://localhost:3000/move-in/complete',
+	RETURN_BASE_URL: process.env.ESIGN_RETURN_BASE_URL || 'http://localhost:3000',
 	FORM_IDS: '', // Empty = all default forms
 };
 
