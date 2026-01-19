@@ -374,7 +374,7 @@ async function processMoveIn(data, locationCode) {
 	if (!locationSlug) {
 		throw new ValidationError(`Invalid location code: ${locationCode}`);
 	}
-	const returnUrl = `${ESIGN_CONFIG.RETURN_BASE_URL}/storage/${locationSlug}/rent/sign-complete?moveInDate=${firstCharge.startDate}`;
+	const returnUrl = `${ESIGN_CONFIG.RETURN_BASE_URL}/storage/${locationSlug}/rent/sign-complete?moveInDate=${firstCharge.startDate}&unitId=${data.unitId}&totalPaid=${costResult.summary.totalDueAtMoveIn}`;
 
 	const eSignResult = await createESignLeaseUrl(
 		{
