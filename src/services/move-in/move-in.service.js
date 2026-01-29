@@ -7,6 +7,7 @@
 const unitsHelper = require("../units/units.helper");
 const costService = require("../sitelink/cost.service");
 const tenantService = require("../tenant/tenant.service");
+const insuranceService = require("../insurance/insurance.service");
 const client = require("../shared/client");
 const { logInfo, logError } = require("../../middleware/logger");
 const { ValidationError, NotFoundError } = require("../../utils/errors");
@@ -385,10 +386,27 @@ async function processMoveIn(data, locationCode) {
 		locationCode,
 	);
 
-	logInfo("MoveInService", "Move-in flow completed", {
-		tenantId: tenantResult.tenantId,
-		ledgerId: moveInResult.ledgerId,
-	});
+	// Step 4.1: Add insurance coverage when select I have my own
+	if (
+		data.insuranceCoverageId === -999 ||
+		data.insuranceCoverageId === 0 ||
+		!data.insuranceCoverageId
+	) {
+		logInfo("MoveInService", "Adding Own Insurance coverage", {
+			ledgerId: moveInResult.ledgerId,
+			insurancePolicyNumber: data.insurancePolicyNumber,
+			insuranceCompanyName: data.insuranceCompanyName,
+		});
+		await insuranceService.addInsuranceCoverage(
+			moveInResult.ledgerId,
+			data.insurancePolicyNumber,
+			data.insuranceCompanyName,
+			data.insuranceCoverageLevel,
+			data.insurancePolicyStartDate,
+			data.insurancePolicyEndDate,
+			locationCode,
+		);
+	}
 
 	// Step 5: Setup autopay if requested
 	if (data.enableAutopay === true) {
@@ -422,6 +440,11 @@ async function processMoveIn(data, locationCode) {
 			ledgerId: moveInResult.ledgerId,
 		});
 	}
+
+	logInfo("MoveInService", "Move-in flow completed", {
+		tenantId: tenantResult.tenantId,
+		ledgerId: moveInResult.ledgerId,
+	});
 
 	// Step 6: Create e-sign URL for lease signing
 	logInfo("MoveInService", "Creating e-sign URL", {

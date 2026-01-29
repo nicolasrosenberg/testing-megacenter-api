@@ -4,7 +4,7 @@
  * Transforms insurance data from SiteLink into clean, frontend-friendly format
  */
 
-const { parseDecimal, parseInt } = require('../../utils/parsers')
+const { parseDecimal, parseInt } = require("../../utils/parsers");
 
 /**
  * Transform insurance plan from InsuranceCoverageRetrieve
@@ -18,10 +18,10 @@ function transformInsurancePlan(sitelinkInsurance) {
 		coverage: parseDecimal(sitelinkInsurance.dcCoverage),
 		premium: parseDecimal(sitelinkInsurance.dcPremium),
 		monthlyPremium: parseDecimal(sitelinkInsurance.dcPremium),
-		description: sitelinkInsurance.sCoverageDesc || '',
-		provider: sitelinkInsurance.sProvidor || '',
-		theftCoveragePercent: parseDecimal(sitelinkInsurance.dcPCTheft) || 0
-	}
+		description: sitelinkInsurance.sCoverageDesc || "",
+		provider: sitelinkInsurance.sProvidor || "",
+		theftCoveragePercent: parseDecimal(sitelinkInsurance.dcPCTheft) || 0,
+	};
 }
 
 /**
@@ -32,23 +32,25 @@ function transformInsurancePlan(sitelinkInsurance) {
 function transformInsurancePlans(rawData) {
 	if (!rawData || !rawData.data) {
 		return {
-			plans: []
-		}
+			plans: [],
+		};
 	}
 
-	const insuranceTable = rawData.data.Table || []
+	const insuranceTable = rawData.data.Table || [];
 
 	// Transform plans
-	const plans = (Array.isArray(insuranceTable) ? insuranceTable : [insuranceTable])
+	const plans = (
+		Array.isArray(insuranceTable) ? insuranceTable : [insuranceTable]
+	)
 		.map(transformInsurancePlan)
-		.sort((a, b) => a.coverage - b.coverage) // Sort by coverage amount ascending
+		.sort((a, b) => a.coverage - b.coverage); // Sort by coverage amount ascending
 
 	return {
-		plans
-	}
+		plans,
+	};
 }
 
 module.exports = {
 	transformInsurancePlan,
-	transformInsurancePlans
-}
+	transformInsurancePlans,
+};
