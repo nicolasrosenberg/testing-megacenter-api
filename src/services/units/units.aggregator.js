@@ -14,26 +14,23 @@ const discountsService = require("../discounts/discounts.service");
  * Assign tier to unit option based on position and total count
  * @param {number} index - Option index (0-based)
  * @param {number} total - Total number of options
- * @returns {string} Tier level
+ * @returns {string} Tier key (GOOD, BETTER, BEST, PREMIUM)
  */
 function assignTier(index, total) {
-	if (total === 1) return config.TIER_LEVELS.GOOD;
-	if (total === 2)
-		return index === 0
-			? config.TIER_LEVELS.GOOD
-			: config.TIER_LEVELS.BETTER;
+	if (total === 1) return "GOOD";
+	if (total === 2) return index === 0 ? "GOOD" : "BETTER";
 	if (total === 3) {
-		if (index === 0) return config.TIER_LEVELS.GOOD;
-		if (index === 1) return config.TIER_LEVELS.BETTER;
-		return config.TIER_LEVELS.BEST;
+		if (index === 0) return "GOOD";
+		if (index === 1) return "BETTER";
+		return "BEST";
 	}
 
 	// 4+ options: divide into quarters
 	const quarter = total / 4;
-	if (index < quarter) return config.TIER_LEVELS.GOOD;
-	if (index < quarter * 2) return config.TIER_LEVELS.BETTER;
-	if (index < quarter * 3) return config.TIER_LEVELS.BEST;
-	return config.TIER_LEVELS.PREMIUM;
+	if (index < quarter) return "GOOD";
+	if (index < quarter * 2) return "BETTER";
+	if (index < quarter * 3) return "BEST";
+	return "PREMIUM";
 }
 
 /**
@@ -57,21 +54,15 @@ function filterAvailableUnits(unitTypes) {
  */
 function processDiscounts(discountPlans) {
 	const discountsMap = new Map();
-	let colorIndex = 0;
 
 	discountPlans.forEach((discountRaw) => {
-		const discount = discountsTransformer.transformDiscount(
-			discountRaw,
-			colorIndex
-		);
+		const discount = discountsTransformer.transformDiscount(discountRaw);
 
 		// Filter: only website-available discounts
 		if (discountsTransformer.isDiscountAvailableOnWebsite(discount)) {
 			discountsMap.set(discount.concessionId, discount);
-			colorIndex++;
 		}
 	});
-
 	return discountsMap;
 }
 
@@ -82,7 +73,7 @@ function processDiscounts(discountPlans) {
  * @param {object} restrictionsMap - Discount restrictions map
  * @returns {Array} Applicable discounts
  */
-function findApplicableDiscounts(unitType, discountsMap, restrictionsMap) {
+function findApplicableDiscounts(unitType, discountsMap) {
 	const applicable = [];
 
 	discountsMap.forEach((discount) => {
@@ -92,7 +83,7 @@ function findApplicableDiscounts(unitType, discountsMap, restrictionsMap) {
 				unitType.unitTypeId,
 				unitType.width,
 				unitType.length,
-				restrictionsMap
+				restrictionsMap,
 			)
 		) {
 			applicable.push(discount);
@@ -110,14 +101,10 @@ function findApplicableDiscounts(unitType, discountsMap, restrictionsMap) {
  * @returns {object} Unit option
  */
 function buildUnitOption(unitTypeRaw, unitType, bestDiscount) {
-	const effectiveMonthly = discountsTransformer.calculateEffectivePrice(
-		unitType.pricing.web,
-		bestDiscount
-	);
-
 	return {
 		unitTypeId: unitType.unitTypeId,
 		tier: "", // Will be assigned later
+		tierDescription: "", // Will be assigned later
 		description: unitTypeRaw.sUnitDesc_FirstAvailable || "",
 
 		features: {
@@ -133,8 +120,6 @@ function buildUnitOption(unitTypeRaw, unitType, bestDiscount) {
 		pricing: {
 			standard: unitType.pricing.standard,
 			web: unitType.pricing.web,
-			preferred: unitType.pricing.preferred,
-			effectiveMonthly,
 		},
 
 		availability: {
@@ -149,18 +134,6 @@ function buildUnitOption(unitTypeRaw, unitType, bestDiscount) {
 		},
 
 		discount: bestDiscount,
-
-		fees: {
-			admin: unitType.pricing.adminFee,
-			reservation: unitType.pricing.reservationFee,
-		},
-
-		tax: {
-			rate1: unitType.tax.rate1,
-			rate2: unitType.tax.rate2,
-			charge1: unitType.tax.charge1,
-			charge2: unitType.tax.charge2,
-		},
 	};
 }
 
@@ -168,14 +141,9 @@ function buildUnitOption(unitTypeRaw, unitType, bestDiscount) {
  * Group units by dimension and type
  * @param {Array} availableUnitTypes - Raw unit types with availability
  * @param {Map} discountsMap - Map of available discounts
- * @param {object} restrictionsMap - Discount restrictions map
  * @returns {object} Groups object keyed by groupKey
  */
-function groupUnitsByDimension(
-	availableUnitTypes,
-	discountsMap,
-	restrictionsMap
-) {
+function groupUnitsByDimension(availableUnitTypes, discountsMap) {
 	const groups = {};
 
 	availableUnitTypes.forEach((unitTypeRaw) => {
@@ -195,22 +163,11 @@ function groupUnitsByDimension(
 			};
 		}
 
-		// Find applicable discounts
-		const applicableDiscounts = findApplicableDiscounts(
-			unitType,
-			discountsMap,
-			restrictionsMap
-		);
-
 		// Get best discount
-		const bestDiscount = findBestDiscount(
-			applicableDiscounts,
-			unitType.pricing.web
-		);
+		const bestDiscount = discountsMap.get(unitType.concessionId);
 
 		// Create option
 		const option = buildUnitOption(unitTypeRaw, unitType, bestDiscount);
-
 		groups[groupKey].options.push(option);
 	});
 
@@ -224,13 +181,13 @@ function groupUnitsByDimension(
  */
 function processGroup(group) {
 	// Sort options by effective price (lowest to highest)
-	group.options.sort(
-		(a, b) => a.pricing.effectiveMonthly - b.pricing.effectiveMonthly
-	);
+	group.options.sort((a, b) => a.pricing.web - b.pricing.web);
 
 	// Assign tiers
 	group.options.forEach((option, index) => {
-		option.tier = assignTier(index, group.options.length);
+		const tierKey = assignTier(index, group.options.length);
+		option.tier = config.TIER_LEVELS[tierKey];
+		option.tierDescription = config.TIER_DESCRIPTIONS[tierKey];
 	});
 
 	// Extract common description
@@ -245,14 +202,14 @@ function processGroup(group) {
 		...new Set(
 			group.options
 				.filter((o) => o.discount)
-				.map((o) => o.discount.concessionId)
+				.map((o) => o.discount.concessionId),
 		),
 	];
 
 	const commonDiscount =
 		discountIds.length === 1 &&
 		group.options.every(
-			(option) => option.discount?.concessionId === discountIds[0]
+			(option) => option.discount?.concessionId === discountIds[0],
 		)
 			? group.options.find((o) => o.discount)?.discount
 			: null;
@@ -270,8 +227,8 @@ function processGroup(group) {
 	const webPrices = group.options
 		.map((o) => o.pricing.web)
 		.filter((p) => p > 0);
-	const effectivePrices = group.options
-		.map((o) => o.pricing.effectiveMonthly)
+	const standardPrices = group.options
+		.map((o) => o.pricing.standard)
 		.filter((p) => p > 0);
 
 	return {
@@ -291,12 +248,13 @@ function processGroup(group) {
 
 		options: group.options,
 
-		minPrice: webPrices.length > 0 ? Math.min(...webPrices) : 0,
-		minPriceWithDiscount:
-			effectivePrices.length > 0 ? Math.min(...effectivePrices) : 0,
+		minWebPrice: webPrices.length > 0 ? Math.min(...webPrices) : 0,
+		minStandardPrice:
+			standardPrices.length > 0 ? Math.min(...standardPrices) : 0,
+
 		totalAvailable: group.options.reduce(
 			(sum, o) => sum + o.availability.vacant,
-			0
+			0,
 		),
 	};
 }
@@ -305,31 +263,22 @@ function processGroup(group) {
  * Main aggregation function: orchestrates the entire grouping process
  * @param {Array} unitTypes - Raw unit types from SiteLink
  * @param {Array} discountPlans - Raw discount plans from SiteLink
- * @param {Array} concessionUnitTypes - Raw concession unit types from SiteLink
  * @returns {Array} Grouped and processed units
  */
-function aggregateUnits(unitTypes, discountPlans, concessionUnitTypes) {
-	// Step 1: Build discount restrictions map
-	const restrictionsMap =
-		discountsService.buildDiscountRestrictionsMap(concessionUnitTypes);
-
-	// Step 2: Process and filter discounts
+function aggregateUnits(unitTypes, discountPlans) {
+	// Step 1: Process and filter discounts
 	const discountsMap = processDiscounts(discountPlans);
 
-	// Step 3: Filter unit types with availability
+	// Step 2: Filter unit types with availability
 	const availableUnitTypes = filterAvailableUnits(unitTypes);
 
-	// Step 4: Group by dimension + type
-	const groups = groupUnitsByDimension(
-		availableUnitTypes,
-		discountsMap,
-		restrictionsMap
-	);
+	// Step 3: Group by dimension + type
+	const groups = groupUnitsByDimension(availableUnitTypes, discountsMap);
 
-	// Step 5: Process each group
+	// Step 4: Process each group
 	const result = Object.values(groups).map(processGroup);
 
-	// Step 6: Sort by area, then type name
+	// Step 5: Sort by area, then type name
 	result.sort((a, b) => {
 		if (a.area !== b.area) {
 			return a.area - b.area;

@@ -1,4 +1,8 @@
 const { callMethod } = require("../shared/client");
+const { getInsurancePlans } = require("../insurance/insurance.service");
+const {
+	transformInsurancePlans,
+} = require("../insurance/insurance.transformer");
 
 /**
  * Calcula el costo total de un move-in con descuentos e insurance
@@ -13,7 +17,7 @@ const { callMethod } = require("../shared/client");
  */
 async function retrieveMoveInCost(
 	{ unitId, moveInDate, insuranceCoverageId = -999, concessionPlanId = -999 },
-	locationCode = null
+	locationCode = null,
 ) {
 	const params = {
 		iUnitID: unitId,
@@ -24,11 +28,30 @@ async function retrieveMoveInCost(
 	};
 
 	const result = await callMethod(
-		"MoveInCostRetrieveWithDiscount_v2",
+		"MoveInCostRetrieveWithDiscount_v4",
 		params,
 		"callCenter",
-		locationCode
+		locationCode,
 	);
+
+	// Get insurance coverage info
+	let selectedInsuranceCoverage = null;
+	if (insuranceCoverageId !== -999) {
+		const rawInsuranceCoverageInfo = await getInsurancePlans(locationCode);
+		const transformedInsuranceCoverageInfo = transformInsurancePlans(
+			rawInsuranceCoverageInfo,
+		);
+		selectedInsuranceCoverage = transformedInsuranceCoverageInfo.plans.find(
+			(plan) =>
+				parseInt(plan.insuranceCoverageId) ===
+				parseInt(insuranceCoverageId),
+		);
+		if (!selectedInsuranceCoverage) {
+			throw new Error(
+				`Insurance coverage with ID ${insuranceCoverageId} not found`,
+			);
+		}
+	}
 
 	// callMethod retorna { data, retCode, retMsg, hasError }
 	// La data viene en result.data con las tablas de SiteLink
@@ -37,7 +60,8 @@ async function retrieveMoveInCost(
 	// Calcular el total a pagar en el move-in
 	const moveInCharges = charges.filter(
 		(charge) =>
-			charge.bMoveInRequired === true || charge.bMoveInRequired === "true"
+			charge.bMoveInRequired === true ||
+			charge.bMoveInRequired === "true",
 	);
 
 	const totalMoveIn = moveInCharges.reduce((sum, charge) => {
@@ -70,6 +94,8 @@ async function retrieveMoveInCost(
 			discount: parseFloat(charge.dcDiscount) || 0,
 			total: parseFloat(charge.dcTotal) || 0,
 			startDate: charge.StartDate,
+			webRate: parseFloat(charge.WebRate) || 0,
+			type: charge.StartDate === charge.EndDate ? "one-time" : "monthly",
 			endDate: charge.EndDate,
 			isRequiredAtMoveIn:
 				charge.bMoveInRequired === true ||
@@ -81,12 +107,12 @@ async function retrieveMoveInCost(
 		summary: {
 			subtotal: charges.reduce(
 				(sum, c) => sum + (parseFloat(c.ChargeAmount) || 0),
-				0
+				0,
 			),
 			totalDiscount: totalDiscount,
 			totalTax: charges.reduce(
 				(sum, c) => sum + (parseFloat(c.TaxAmount) || 0),
-				0
+				0,
 			),
 			totalDueAtMoveIn: totalMoveIn,
 
@@ -99,6 +125,8 @@ async function retrieveMoveInCost(
 		pricing: {
 			tenantRate: parseFloat(unitInfo.dcTenantRate) || 0,
 			webRate: parseFloat(unitInfo.WebRate) || 0,
+			insuranceCoverageRate:
+				parseFloat(selectedInsuranceCoverage?.premium) || 0,
 		},
 	};
 }
@@ -129,7 +157,7 @@ async function setupAutopay(
 		billingAddress,
 		billingZipCode,
 	},
-	locationCode = null
+	locationCode = null,
 ) {
 	const params = {
 		iLedgerID: ledgerId,
@@ -150,7 +178,7 @@ async function setupAutopay(
 		"TenantBillingInfoUpdate_v2",
 		params,
 		"callCenter",
-		locationCode
+		locationCode,
 	);
 
 	// retCode > 0 significa que el LedgerID fue actualizado exitosamente
@@ -158,7 +186,7 @@ async function setupAutopay(
 		throw new Error(
 			`Failed to setup autopay: ${
 				result.retMsg || "Unknown error"
-			} (Code: ${result.retCode})`
+			} (Code: ${result.retCode})`,
 		);
 	}
 

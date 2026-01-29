@@ -10,6 +10,7 @@ const unitsTransformer = require("./units.transformer");
 const discountsTransformer = require("../discounts/discounts.transformer");
 const { logInfo } = require("../../middleware/logger");
 const { ValidationError, NotFoundError } = require("../../utils/errors");
+const { findBestDiscount } = require("../../utils/pricing");
 
 /**
  * Validate unit availability and get unit info with applicable discounts
@@ -24,7 +25,7 @@ const { ValidationError, NotFoundError } = require("../../utils/errors");
 async function validateAndGetUnitWithDiscounts(
 	unitId,
 	locationCode,
-	includeDiscounts = true
+	includeDiscounts = true,
 ) {
 	logInfo("UnitsHelper", `Validating unit ${unitId}`, { includeDiscounts });
 
@@ -58,7 +59,7 @@ async function validateAndGetUnitWithDiscounts(
 		if (!bRentable) reasons.push("not rentable");
 
 		throw new ValidationError(
-			`Unit ${unitId} is not available: ${reasons.join(", ")}`
+			`Unit ${unitId} is not available: ${reasons.join(", ")}`,
 		);
 	}
 
@@ -89,13 +90,13 @@ async function validateAndGetUnitWithDiscounts(
 	const discountPlans = Array.isArray(discountPlansRaw)
 		? discountPlansRaw
 		: discountPlansRaw
-		? [discountPlansRaw]
-		: [];
+			? [discountPlansRaw]
+			: [];
 	const concessionUnitTypes = Array.isArray(concessionUnitTypesRaw)
 		? concessionUnitTypesRaw
 		: concessionUnitTypesRaw
-		? [concessionUnitTypesRaw]
-		: [];
+			? [concessionUnitTypesRaw]
+			: [];
 
 	// Build discount restrictions map
 	const restrictionsMap =
@@ -103,13 +104,9 @@ async function validateAndGetUnitWithDiscounts(
 
 	// Process and filter discounts (only website-available)
 	const applicableDiscounts = [];
-	let colorIndex = 0;
 
 	discountPlans.forEach((discountRaw) => {
-		const discount = discountsTransformer.transformDiscount(
-			discountRaw,
-			colorIndex
-		);
+		const discount = discountsTransformer.transformDiscount(discountRaw);
 
 		// Filter: only website-available discounts
 		if (discountsTransformer.isDiscountAvailableOnWebsite(discount)) {
@@ -120,26 +117,19 @@ async function validateAndGetUnitWithDiscounts(
 					transformedUnit.unitTypeId,
 					transformedUnit.width,
 					transformedUnit.length,
-					restrictionsMap
+					restrictionsMap,
 				)
 			) {
 				applicableDiscounts.push(discount);
-				colorIndex++;
 			}
 		}
 	});
+	console.log("APPLICABLE DISCOUNTS", applicableDiscounts);
 
 	// Find best discount
-	const { findBestDiscount } = require("../../utils/pricing");
 	const bestDiscount = findBestDiscount(
 		applicableDiscounts,
-		transformedUnit.pricing.web
-	);
-
-	// Calculate effective price
-	const effectiveMonthly = discountsTransformer.calculateEffectivePrice(
 		transformedUnit.pricing.web,
-		bestDiscount
 	);
 
 	logInfo("UnitsHelper", `Unit ${unitId} validated successfully`, {
@@ -151,7 +141,6 @@ async function validateAndGetUnitWithDiscounts(
 		...transformedUnit,
 		pricing: {
 			...transformedUnit.pricing,
-			effectiveMonthly,
 		},
 		discount: bestDiscount,
 		applicableDiscounts,
@@ -159,88 +148,6 @@ async function validateAndGetUnitWithDiscounts(
 	};
 }
 
-/**
- * Validate discount applicability for a specific unit
- *
- * @param {number|null} concessionId - Discount ID (-999 or null for no discount)
- * @param {object} unitInfo - Unit information (must have unitTypeId, width, length)
- * @param {string} locationCode - Location code
- * @returns {Promise<boolean>} True if valid (or no discount)
- * @throws {ValidationError} If discount is invalid or doesn't apply
- */
-async function validateDiscount(concessionId, unitInfo, locationCode) {
-	// No discount = always valid
-	if (!concessionId || concessionId === -999) {
-		logInfo("UnitsHelper", "No discount to validate");
-		return true;
-	}
-
-	logInfo("UnitsHelper", "Validating discount", {
-		concessionId,
-		unitTypeId: unitInfo.unitTypeId,
-	});
-
-	// Fetch all discount plans
-	const discountsResponse = await discountsService.getDiscountPlans(
-		locationCode
-	);
-
-	const discountPlans = discountsResponse.data?.Concession || [];
-	const concessionUnitTypes =
-		discountsResponse.data?.ConcessionUnitTypes || [];
-
-	// Find the specific discount
-	const discount = discountPlans.find(
-		(d) => parseInt(d.ConcessionID) === parseInt(concessionId)
-	);
-
-	if (!discount) {
-		throw new ValidationError(`Discount ${concessionId} not found`);
-	}
-
-	// Check if discount is disabled
-	if (discount.dDisabled) {
-		throw new ValidationError(`Discount ${concessionId} is disabled`);
-	}
-
-	// Check if discount applies to web
-	const availableAt = parseInt(discount.iAvailableAt);
-	const isWebAvailable =
-		availableAt === 0 || // Everywhere
-		availableAt === 2 || // Website Only
-		(availableAt >= 16 && (availableAt & 32) !== 0); // Bitmask check
-
-	if (!isWebAvailable) {
-		throw new ValidationError(
-			`Discount ${concessionId} is not available for web bookings`
-		);
-	}
-
-	// Check if discount applies to the specific unit
-	const restrictionsMap =
-		discountsService.buildDiscountRestrictionsMap(concessionUnitTypes);
-	const appliesToUnit = discountsService.discountAppliesToUnit(
-		concessionId,
-		unitInfo.unitTypeId,
-		unitInfo.width,
-		unitInfo.length,
-		restrictionsMap
-	);
-
-	if (!appliesToUnit) {
-		throw new ValidationError(
-			`Discount ${concessionId} does not apply to unit type ${unitInfo.unitTypeId}`
-		);
-	}
-
-	logInfo("UnitsHelper", "Discount is valid", {
-		concessionId,
-		unitTypeId: unitInfo.unitTypeId,
-	});
-	return true;
-}
-
 module.exports = {
 	validateAndGetUnitWithDiscounts,
-	validateDiscount,
 };

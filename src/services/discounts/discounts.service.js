@@ -4,8 +4,7 @@
  * SOAP methods related to discounts and concessions
  */
 
-const client = require('../shared/client')
-const config = require('../../config')
+const client = require("../shared/client");
 
 /**
  * Get all discount plans
@@ -16,11 +15,11 @@ const config = require('../../config')
  */
 async function getDiscountPlans(locationCode = null) {
 	return await client.callMethod(
-		'DiscountPlansRetrieve',
+		"DiscountPlansRetrieve",
 		{},
-		'callCenter',
-		locationCode
-	)
+		"callCenter",
+		locationCode,
+	);
 }
 
 /**
@@ -31,27 +30,27 @@ async function getDiscountPlans(locationCode = null) {
  * @returns {object} Map of ConcessionID to restrictions
  */
 function buildDiscountRestrictionsMap(concessionUnitTypes) {
-	const map = {}
+	const map = {};
 
 	if (!concessionUnitTypes || !Array.isArray(concessionUnitTypes)) {
-		return map
+		return map;
 	}
 
-	concessionUnitTypes.forEach(restriction => {
-		const concessionId = parseInt(restriction.ConcessionID)
+	concessionUnitTypes.forEach((restriction) => {
+		const concessionId = parseInt(restriction.ConcessionID);
 
 		if (!map[concessionId]) {
-			map[concessionId] = []
+			map[concessionId] = [];
 		}
 
 		map[concessionId].push({
 			unitTypeId: parseInt(restriction.UnitTypeID) || null,
 			width: parseFloat(restriction.dcWidth) || null,
-			length: parseFloat(restriction.dcLength) || null
-		})
-	})
+			length: parseFloat(restriction.dcLength) || null,
+		});
+	});
 
-	return map
+	return map;
 }
 
 /**
@@ -64,36 +63,42 @@ function buildDiscountRestrictionsMap(concessionUnitTypes) {
  * @param {object} restrictionsMap - Map from buildDiscountRestrictionsMap()
  * @returns {boolean} True if discount applies
  */
-function discountAppliesToUnit(concessionId, unitTypeId, width, length, restrictionsMap) {
-	const restrictions = restrictionsMap[concessionId]
+function discountAppliesToUnit(
+	concessionId,
+	unitTypeId,
+	width,
+	length,
+	restrictionsMap,
+) {
+	const restrictions = restrictionsMap[concessionId];
 
 	// If NO restrictions, discount applies to ALL units
 	if (!restrictions || restrictions.length === 0) {
-		return true
+		return true;
 	}
 
 	// If there ARE restrictions, check for exact match
-	return restrictions.some(r => {
+	return restrictions.some((r) => {
 		// Must match unit type
 		if (r.unitTypeId !== unitTypeId) {
-			return false
+			return false;
 		}
 
 		// If width/length specified, must match
 		if (r.width && r.width !== width) {
-			return false
+			return false;
 		}
 
 		if (r.length && r.length !== length) {
-			return false
+			return false;
 		}
 
-		return true
-	})
+		return true;
+	});
 }
 
 module.exports = {
 	getDiscountPlans,
 	buildDiscountRestrictionsMap,
-	discountAppliesToUnit
-}
+	discountAppliesToUnit,
+};

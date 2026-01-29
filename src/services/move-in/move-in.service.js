@@ -37,7 +37,7 @@ const { getLocationSlug } = require("../../config/locations");
 async function validateUnitAvailabilityAndDiscount(
 	unitId,
 	concessionId,
-	locationCode
+	locationCode,
 ) {
 	logInfo("MoveInService", "Validating unit availability and discount", {
 		unitId,
@@ -48,7 +48,7 @@ async function validateUnitAvailabilityAndDiscount(
 	const unitInfo = await unitsHelper.validateAndGetUnitWithDiscounts(
 		unitId,
 		locationCode,
-		true
+		true,
 	);
 
 	// If no discount requested, we're done
@@ -59,12 +59,12 @@ async function validateUnitAvailabilityAndDiscount(
 
 	// Check if the requested discount is in the list of applicable discounts
 	const isDiscountApplicable = unitInfo.applicableDiscounts.some(
-		(d) => parseInt(d.concessionId) === parseInt(concessionId)
+		(d) => parseInt(d.concessionId) === parseInt(concessionId),
 	);
 
 	if (!isDiscountApplicable) {
 		throw new ValidationError(
-			`Discount ${concessionId} is not available for this unit`
+			`Discount ${concessionId} is not available for this unit`,
 		);
 	}
 
@@ -106,7 +106,7 @@ async function validateCost(params, locationCode) {
 			concessionPlanId:
 				params.concessionPlanId || DEFAULTS.CONCESSION_PLAN_ID,
 		},
-		locationCode
+		locationCode,
 	);
 
 	// Compare with expected total (allow 0.01 difference for rounding)
@@ -117,8 +117,8 @@ async function validateCost(params, locationCode) {
 	if (difference > 0.01) {
 		throw new ValidationError(
 			`Price has changed. Expected $${expectedTotal.toFixed(
-				2
-			)}, but actual is $${actualTotal.toFixed(2)}`
+				2,
+			)}, but actual is $${actualTotal.toFixed(2)}`,
 		);
 	}
 
@@ -132,6 +132,25 @@ async function validateCost(params, locationCode) {
  * @param {object} params - Move-in parameters
  * @param {object} costResult - Cost calculation result
  * @returns {object} SiteLink SOAP arguments
+ * 
+ * tenantId: tenantResult.tenantId,
+gateCode: tenantResult.accessCode,
+unitId: data.unitId,
+paymentAmount: costResult.summary.totalDueAtMoveIn,
+
+firstName: data.billingFirstName,
+lastName: data.billingLastName,
+
+// Payment
+creditCardType: data.billingCardType,
+creditCardNumber: data.billingCardNumber,
+creditCardCVV: data.billingCardCVV,
+creditCardExpirationDate: data.billingCardExpirationDate,
+billingAddress: `${data.billingAddress} ${data.billingAddress2}, ${data.billingCity}, ${data.billingState}`,
+billingZipCode: data.billingZipCode,
+
+insuranceCoverageId: data.insuranceCoverageId,
+concessionPlanId: data.concessionPlanId,
  */
 function buildMoveInArgs(params, costResult) {
 	// Extract dates from the first required charge
@@ -142,7 +161,7 @@ function buildMoveInArgs(params, costResult) {
 	// Map card type string to ID and convert expiration date
 	const creditCardType = mapCardTypeToId(params.creditCardType);
 	const expirationDateISO = convertExpirationDateToISO(
-		params.creditCardExpirationDate
+		params.creditCardExpirationDate,
 	);
 	const billingName = buildBillingName(params.firstName, params.lastName);
 
@@ -203,7 +222,7 @@ async function executeMoveIn(params, costResult, locationCode) {
 		"MoveInWithDiscount_v5",
 		args,
 		"callCenter",
-		locationCode
+		locationCode,
 	);
 
 	// Response returns LedgerID in retCode (positive number)
@@ -214,7 +233,7 @@ async function executeMoveIn(params, costResult, locationCode) {
 			response.retMsg ||
 			"Unknown error";
 		throw new ValidationError(
-			`Move-in failed: ${errorMsg} (Code: ${response.retCode})`
+			`Move-in failed: ${errorMsg} (Code: ${response.retCode})`,
 		);
 	}
 
@@ -228,7 +247,7 @@ async function executeMoveIn(params, costResult, locationCode) {
 	if (response.data) {
 		if (Array.isArray(response.data)) {
 			leaseNumber = response.data[0];
-		} else if (typeof response.data === 'object' && response.data.RT) {
+		} else if (typeof response.data === "object" && response.data.RT) {
 			// Handle XML parsed structure
 			leaseNumber = response.data.RT.iLeaseNum || null;
 		} else {
@@ -256,18 +275,16 @@ async function executeMoveIn(params, costResult, locationCode) {
 async function processMoveIn(data, locationCode) {
 	logInfo("MoveInService", "Starting move-in flow", {
 		unitId: data.unitId,
-		email: data?.email,
-		firstName: data?.firstName,
-		lastName: data?.lastName,
-		phone: data?.phone,
-		enableAutopay: data?.enableAutopay || false,
+		email: data?.tenantEmail,
+		firstName: data?.tenantFirstName,
+		lastName: data?.tenantLastName,
 	});
 
 	// Step 1: Validate unit availability and discount in one call
 	const unitInfo = await validateUnitAvailabilityAndDiscount(
 		data.unitId,
 		data.concessionPlanId,
-		locationCode
+		locationCode,
 	);
 
 	// Step 2: Validate cost
@@ -279,19 +296,62 @@ async function processMoveIn(data, locationCode) {
 			concessionPlanId: data.concessionPlanId,
 			expectedTotal: data.expectedTotal,
 		},
-		locationCode
+		locationCode,
 	);
 
 	// Step 3: Create tenant
 	const tenantResult = await tenantService.createTenant(
 		{
-			firstName: data.firstName,
-			lastName: data.lastName,
-			email: data.email,
-			phone: data.phone,
+			firstName: data.tenantFirstName,
+			lastName: data.tenantLastName,
+			email: data.tenantEmail,
+			phone: data.tenantPhone,
+			address: data.tenantAddress,
+			address2: data.tenantAddress2,
+			city: data.tenantCity,
+			state: data.tenantState,
+			zipCode: data.tenantZipCode,
+			dateOfBirth: data.tenantDateOfBirth,
+
+			// ID
+			idType: data.tenantIdType,
+			idNumber: data.tenantIdNumber,
+			idState: data.tenantIdState,
+
+			// Alternate contact
+			altFirstName: data.alternateContactFirstName || "",
+			altLastName: data.alternateContactLastName || "",
+			altEmail: data.alternateContactEmail || "",
+			altPhone: data.alternateContactPhone || "",
+
+			// Company & Storage details
+			storageUse: data.storageUse,
+			companyName: data.businessName || "",
+			storageDescription: data.storageDescription || "",
+			estimatedValue: data.estimatedValue || 0,
+			taxId: data.taxId || "",
 		},
-		locationCode
+		locationCode,
 	);
+
+	// Step 3.1: Update tenant military status
+	if (data.tenantIsMilitary) {
+		await tenantService.updateTenantMilitaryStatus(
+			tenantResult.tenantId,
+			data.tenantIsMilitary,
+			locationCode,
+		);
+	}
+
+	// Step 3.2: Update tenant ID image
+	if (data.tenantIdImageData && data.tenantIdImageFilename) {
+		await tenantService.updateTenantIdImage(
+			tenantResult.tenantId,
+			data.tenantIdImageData,
+			data.tenantIdImageFilename,
+			locationCode,
+		);
+	}
 
 	logInfo("MoveInService", "Tenant created", {
 		tenantId: tenantResult.tenantId,
@@ -302,25 +362,27 @@ async function processMoveIn(data, locationCode) {
 	// Step 4: Execute move-in
 	const moveInResult = await executeMoveIn(
 		{
-			firstName: data.firstName,
-			lastName: data.lastName,
-			email: data.email,
-			phone: data.phone,
-			creditCardType: data.creditCardType,
-			creditCardNumber: data.creditCardNumber,
-			creditCardCVV: data.creditCardCVV,
-			creditCardExpirationDate: data.creditCardExpirationDate,
-			billingAddress: data.billingAddress,
-			billingZipCode: data.billingZipCode,
 			tenantId: tenantResult.tenantId,
 			gateCode: tenantResult.accessCode,
 			unitId: data.unitId,
 			paymentAmount: costResult.summary.totalDueAtMoveIn,
+
+			firstName: data.billingFirstName,
+			lastName: data.billingLastName,
+
+			// Payment
+			creditCardType: data.billingCardType,
+			creditCardNumber: data.billingCardNumber,
+			creditCardCVV: data.billingCardCVV,
+			creditCardExpirationDate: data.billingCardExpirationDate,
+			billingAddress: `${data.billingAddress} ${data.billingAddress2}, ${data.billingCity}, ${data.billingState}`,
+			billingZipCode: data.billingZipCode,
+
 			insuranceCoverageId: data.insuranceCoverageId,
 			concessionPlanId: data.concessionPlanId,
 		},
 		costResult,
-		locationCode
+		locationCode,
 	);
 
 	logInfo("MoveInService", "Move-in flow completed", {
@@ -335,22 +397,25 @@ async function processMoveIn(data, locationCode) {
 		});
 
 		const expirationDateISO = convertExpirationDateToISO(
-			data.creditCardExpirationDate
+			data.billingCardExpirationDate,
 		);
-		const billingName = buildBillingName(data.firstName, data.lastName);
+		const billingName = buildBillingName(
+			data.billingFirstName,
+			data.billingLastName,
+		);
 		const creditCardType = 0;
 
 		await costService.setupAutopay(
 			{
 				ledgerId: moveInResult.ledgerId,
 				creditCardType,
-				creditCardNumber: data.creditCardNumber,
+				creditCardNumber: data.billingCardNumber,
 				creditCardExpirationDate: expirationDateISO,
 				billingName,
-				billingAddress: data.billingAddress,
+				billingAddress: `${data.billingAddress} ${data.billingAddress2}, ${data.billingCity}, ${data.billingState}`,
 				billingZipCode: data.billingZipCode,
 			},
-			locationCode
+			locationCode,
 		);
 
 		logInfo("MoveInService", "Autopay configured", {
@@ -383,7 +448,7 @@ async function processMoveIn(data, locationCode) {
 			returnUrl,
 			formIds: ESIGN_CONFIG.FORM_IDS,
 		},
-		locationCode
+		locationCode,
 	);
 
 	const eSignUrl = eSignResult.eSignUrl;
@@ -435,14 +500,14 @@ async function createESignLeaseUrl(params, locationCode) {
 			sReturnUrl: params.returnUrl,
 		},
 		"callCenter",
-		locationCode
+		locationCode,
 	);
 
 	// Response returns the e-sign URL in retMsg when retCode is positive (1 = success)
 	if (response.retCode <= 0) {
 		const errorMsg = response.retMsg || "Failed to create e-sign URL";
 		throw new ValidationError(
-			`E-sign creation failed: ${errorMsg} (Code: ${response.retCode})`
+			`E-sign creation failed: ${errorMsg} (Code: ${response.retCode})`,
 		);
 	}
 
@@ -450,9 +515,7 @@ async function createESignLeaseUrl(params, locationCode) {
 	const eSignUrl = response.retMsg;
 
 	if (!eSignUrl || typeof eSignUrl !== "string") {
-		throw new ValidationError(
-			"E-sign URL not returned from SiteLink"
-		);
+		throw new ValidationError("E-sign URL not returned from SiteLink");
 	}
 
 	logInfo("MoveInService", "E-sign URL created", {

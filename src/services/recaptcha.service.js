@@ -5,8 +5,8 @@
  * Protección invisible contra bots
  */
 
-const { logInfo, logWarn, logError } = require('../middleware/logger')
-const { ValidationError } = require('../utils/errors')
+const { logInfo, logWarn, logError } = require("../middleware/logger");
+const { ValidationError } = require("../utils/errors");
 
 /**
  * Verifica un token de reCAPTCHA v3 con Google
@@ -15,94 +15,101 @@ const { ValidationError } = require('../utils/errors')
  * @param {string} action - Acción esperada (ej: 'submit_reservation')
  * @returns {Promise<object>} Resultado de la verificación
  */
-async function verifyRecaptcha(token, action = 'submit') {
-	const secretKey = process.env.RECAPTCHA_SECRET_KEY
-	const minScore = parseFloat(process.env.RECAPTCHA_MIN_SCORE) || 0.5
+async function verifyRecaptcha(token, action = "submit") {
+	const secretKey = process.env.RECAPTCHA_SECRET_KEY;
+	const minScore = parseFloat(process.env.RECAPTCHA_MIN_SCORE) || 0.5;
 
 	// Validar que la secret key esté configurada
 	if (!secretKey) {
-		logWarn('reCAPTCHA', 'RECAPTCHA_SECRET_KEY not configured, skipping validation')
+		logWarn(
+			"reCAPTCHA",
+			"RECAPTCHA_SECRET_KEY not configured, skipping validation",
+		);
 		// En desarrollo, permitir sin reCAPTCHA
-		if (process.env.NODE_ENV === 'development') {
-			return { success: true, score: 1.0, skipped: true }
+		if (process.env.NODE_ENV === "development") {
+			return { success: true, score: 1.0, skipped: true };
 		}
-		throw new ValidationError('reCAPTCHA not configured on server')
+		throw new ValidationError("reCAPTCHA not configured on server");
 	}
 
 	// Validar que el token exista
 	if (!token) {
-		logWarn('reCAPTCHA', 'No token provided')
-		throw new ValidationError('reCAPTCHA token is required')
+		logWarn("reCAPTCHA", "No token provided");
+		throw new ValidationError("reCAPTCHA token is required");
 	}
 
 	try {
-		console.log('🌐 [reCAPTCHA] Llamando a Google API...')
+		console.log("🌐 [reCAPTCHA] Llamando a Google API...");
 
 		// Llamar a la API de Google
 		const response = await fetch(
-			'https://www.google.com/recaptcha/api/siteverify',
+			"https://www.google.com/recaptcha/api/siteverify",
 			{
-				method: 'POST',
+				method: "POST",
 				headers: {
-					'Content-Type': 'application/x-www-form-urlencoded'
+					"Content-Type": "application/x-www-form-urlencoded",
 				},
-				body: `secret=${secretKey}&response=${token}`
-			}
-		)
+				body: `secret=${secretKey}&response=${token}`,
+			},
+		);
 
-		const data = await response.json()
-		console.log('✅ [reCAPTCHA] Respuesta de Google:', JSON.stringify(data, null, 2))
+		const data = await response.json();
+		console.log(
+			"✅ [reCAPTCHA] Respuesta de Google:",
+			JSON.stringify(data, null, 2),
+		);
 
-		logInfo('reCAPTCHA', 'Verification response', {
+		logInfo("reCAPTCHA", "Verification response", {
 			success: data.success,
 			score: data.score,
 			action: data.action,
-			hostname: data.hostname
-		})
+			hostname: data.hostname,
+		});
 
 		// Validar respuesta de Google
 		if (!data.success) {
-			logWarn('reCAPTCHA', 'Verification failed', {
-				'error-codes': data['error-codes']
-			})
-			throw new ValidationError('reCAPTCHA verification failed')
+			logWarn("reCAPTCHA", "Verification failed", {
+				"error-codes": data["error-codes"],
+			});
+			throw new ValidationError("reCAPTCHA verification failed");
 		}
 
 		// Validar acción (opcional pero recomendado)
 		if (action && data.action !== action) {
-			logWarn('reCAPTCHA', 'Action mismatch', {
+			logWarn("reCAPTCHA", "Action mismatch", {
 				expected: action,
-				received: data.action
-			})
+				received: data.action,
+			});
 		}
 
 		// Validar score (v3 usa scores de 0.0 a 1.0)
 		if (data.score < minScore) {
-			logWarn('reCAPTCHA', 'Score too low', {
+			logWarn("reCAPTCHA", "Score too low", {
 				score: data.score,
-				minScore: minScore
-			})
+				minScore: minScore,
+			});
 			throw new ValidationError(
-				`reCAPTCHA score too low (${data.score}). Suspected bot activity.`
-			)
+				`reCAPTCHA score too low (${data.score}). Suspected bot activity.`,
+			);
 		}
 
 		return {
 			success: true,
 			score: data.score,
 			action: data.action,
-			hostname: data.hostname
-		}
-
+			hostname: data.hostname,
+		};
 	} catch (error) {
 		// Si es un ValidationError, re-lanzarlo
 		if (error instanceof ValidationError) {
-			throw error
+			throw error;
 		}
 
 		// Error de red o de Google
-		logError('reCAPTCHA', error, { token: token.substring(0, 20) + '...' })
-		throw new ValidationError('Failed to verify reCAPTCHA. Please try again.')
+		logError("reCAPTCHA", error, { token: token.substring(0, 20) + "..." });
+		throw new ValidationError(
+			"Failed to verify reCAPTCHA. Please try again.",
+		);
 	}
 }
 
@@ -112,39 +119,42 @@ async function verifyRecaptcha(token, action = 'submit') {
  * @param {string} action - Acción esperada (opcional)
  * @returns {Function} Express middleware
  */
-function requireRecaptcha(action = 'submit') {
+function requireRecaptcha(action = "submit") {
 	return async (req, res, next) => {
-		console.log('🔍 [reCAPTCHA Middleware] Ejecutándose...')
-		console.log('📦 Body completo:', JSON.stringify(req.body, null, 2))
+		console.log("🔍 [reCAPTCHA Middleware] Ejecutándose...");
+		//console.log('📦 Body completo:', JSON.stringify(req.body, null, 2))
 
-		const token = req.body.recaptchaToken
-		console.log('🎫 Token recibido:', token ? token.substring(0, 30) + '...' : 'NO TOKEN')
+		const token = req.body.recaptchaToken;
+		/* console.log(
+			"🎫 Token recibido:",
+			token ? token.substring(0, 30) + "..." : "NO TOKEN",
+		); */
 
 		try {
-			const result = await verifyRecaptcha(token, action)
+			const result = await verifyRecaptcha(token, action);
 
 			// Agregar resultado al request para logging
-			req.recaptchaResult = result
+			req.recaptchaResult = result;
 
-			next()
+			next();
 		} catch (error) {
-			console.log('❌ [reCAPTCHA] Error:', error.message)
+			console.log("❌ [reCAPTCHA] Error:", error.message);
 
 			// Si es ValidationError, devolver 403
 			if (error instanceof ValidationError) {
 				return res.status(403).json({
 					success: false,
-					error: error.message
-				})
+					error: error.message,
+				});
 			}
 
 			// Otros errores, pasar al error handler
-			next(error)
+			next(error);
 		}
-	}
+	};
 }
 
 module.exports = {
 	verifyRecaptcha,
-	requireRecaptcha
-}
+	requireRecaptcha,
+};
