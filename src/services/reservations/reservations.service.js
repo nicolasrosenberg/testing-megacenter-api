@@ -4,28 +4,30 @@
  * SOAP methods related to creating reservations
  */
 
-const client = require('../shared/client')
-const tenantService = require('../tenant/tenant.service')
-const { logInfo } = require('../../middleware/logger')
+const client = require("../shared/client");
+const tenantService = require("../tenant/tenant.service");
+const mailingService = require("../mailing/resend");
+const unitService = require("../units/units.service");
+const { logInfo, logError } = require("../../middleware/logger");
 
 /**
  * Helper: Remove null/undefined fields and empty strings for date fields
  * SiteLink SOAP doesn't accept empty strings for certain types
  */
 function cleanSoapArgs(args) {
-	const cleaned = {}
+	const cleaned = {};
 	for (const [key, value] of Object.entries(args)) {
 		// Skip null/undefined
 		if (value === null || value === undefined) {
-			continue
+			continue;
 		}
 		// Skip empty strings for date fields (dDOB, etc)
-		if (key.startsWith('d') && value === '') {
-			continue
+		if (key.startsWith("d") && value === "") {
+			continue;
 		}
-		cleaned[key] = value
+		cleaned[key] = value;
 	}
-	return cleaned
+	return cleaned;
 }
 
 /**
@@ -45,42 +47,44 @@ async function createReservation(reservationData, locationCode = null) {
 	const args = cleanSoapArgs({
 		sTenantID: String(reservationData.tenantId),
 		sUnitID: String(reservationData.unitId),
-		sUnitID2: '',
-		sUnitID3: '',
+		sUnitID2: "",
+		sUnitID3: "",
 		dNeeded: reservationData.moveInDate,
-		sComment: reservationData.comment || '',
+		sComment: reservationData.comment || "",
 		iSource: 5, // Website
-		sSource: 'Website API',
+		sSource: "Website API",
 		QTRentalTypeID: 2, // Order (Reservation)
 		iInquiryType: 2, // Web
 		dcQuotedRate: null,
 		dExpires: null,
 		dFollowUp: null,
-		sTrackingCode: '',
-		sCallerID: '',
-		ConcessionID: reservationData.concessionId || -999
-	})
+		sTrackingCode: "",
+		sCallerID: "",
+		ConcessionID: reservationData.concessionId || -999,
+	});
 
-	logInfo('ReservationsService', 'Creating reservation', {
+	logInfo("ReservationsService", "Creating reservation", {
 		tenantId: reservationData.tenantId,
-		unitId: reservationData.unitId
-	})
+		unitId: reservationData.unitId,
+	});
 
 	const response = await client.callMethod(
-		'ReservationNewWithSource_v5',
+		"ReservationNewWithSource_v5",
 		args,
-		'callCenter',
-		locationCode
-	)
+		"callCenter",
+		locationCode,
+	);
 
 	// Extract WaitingListID from Ret_Code (positive number = success)
-	const rtData = Array.isArray(response.data) ? response.data[0] : response.data
+	const rtData = Array.isArray(response.data)
+		? response.data[0]
+		: response.data;
 
 	return {
 		waitingListId: response.retCode, // Ret_Code contains the WaitingListID
 		globalWaitingNum: rtData || response.retMsg,
-		rawResponse: response
-	}
+		rawResponse: response,
+	};
 }
 
 /**
@@ -104,44 +108,96 @@ async function createReservation(reservationData, locationCode = null) {
  */
 async function createReservationFlow(data, locationCode) {
 	// Step 1: Create tenant
-	const tenantResult = await tenantService.createTenant({
-		firstName: data.firstName,
-		lastName: data.lastName,
-		email: data.email,
-		phone: data.phone,
-		address: data.address,
-		city: data.city,
-		state: data.state,
-		zipCode: data.zipCode,
-		notes: data.comment
-	}, locationCode)
+	const tenantResult = await tenantService.createTenant(
+		{
+			firstName: data.firstName,
+			lastName: data.lastName,
+			email: data.email,
+			phone: data.phone,
+			address: data.address,
+			city: data.city,
+			state: data.state,
+			zipCode: data.zipCode,
+			notes: data.comment,
+		},
+		locationCode,
+	);
 
-	logInfo('ReservationsService', 'Tenant created', {
-		tenantId: tenantResult.tenantId
-	})
+	logInfo("ReservationsService", "Tenant created", {
+		tenantId: tenantResult.tenantId,
+	});
 
 	// Step 2: Create reservation
-	const reservationResult = await createReservation({
-		tenantId: tenantResult.tenantId,
-		unitId: data.unitId,
-		moveInDate: data.moveInDate,
-		comment: data.comment,
-		concessionId: data.concessionId
-	}, locationCode)
+	const reservationResult = await createReservation(
+		{
+			tenantId: tenantResult.tenantId,
+			unitId: data.unitId,
+			moveInDate: data.moveInDate,
+			comment: data.comment,
+			concessionId: data.concessionId,
+		},
+		locationCode,
+	);
 
-	logInfo('ReservationsService', 'Reservation created', {
-		waitingListId: reservationResult.waitingListId
-	})
+	logInfo("ReservationsService", "Reservation created", {
+		waitingListId: reservationResult.waitingListId,
+	});
+
+	// Get Unit Info
+	const unitResponse = await unitService.getUnitById(
+		data.unitId,
+		locationCode,
+	);
+
+	const unitData = unitResponse.data.Table;
+	const unit = Array.isArray(unitData) ? unitData[0] : unitData;
+
+	console.log("UNIT", unit);
+
+	// Step 3: Send confirmation email
+	try {
+		await mailingService.sendReservationConfirmation(
+			{
+				// Reservation Info
+				email: data.email,
+				firstName: data.firstName,
+				lastName: data.lastName,
+				reservationNumber: String(reservationResult.waitingListId),
+
+				// Unit Info
+				unitId: String(data.unitId),
+				unitName: unit.sUnitName,
+				typeName: unit.sTypeName,
+				floor: String(unit.iFloor),
+				width: parseFloat(unit.dcWidth),
+				length: parseFloat(unit.dcLength),
+				area: parseFloat(unit.dcWidth) * parseFloat(unit.dcLength),
+				stdRate: parseFloat(unit.dcStdRate).toFixed(2),
+				webRate: parseFloat(unit.dcWebRate).toFixed(2),
+				power: String(unit.bPower),
+				alarm: String(unit.bAlarm),
+				climate: String(unit.bClimate),
+				inside: String(unit.bInside),
+			},
+			locationCode,
+		);
+	} catch (emailError) {
+		// Log but don't fail the reservation if email fails
+		logError("ReservationsService", "Failed to send confirmation email", {
+			error: emailError.message,
+			reservationId: reservationResult.waitingListId,
+		});
+	}
 
 	return {
 		tenantId: tenantResult.tenantId,
 		accessCode: tenantResult.accessCode,
 		reservationId: reservationResult.waitingListId,
-		globalWaitingNum: reservationResult.globalWaitingNum
-	}
+		globalWaitingNum: reservationResult.globalWaitingNum,
+	};
 }
 
 module.exports = {
 	createReservation,
-	createReservationFlow
-}
+	createReservationFlow,
+};
