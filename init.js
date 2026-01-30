@@ -30,6 +30,9 @@ app.use(helmetConfig)
 app.use(express.json({ limit: '10mb' })) // Limitar tamaño de payload
 app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 
+// Serve static files from public directory
+app.use('/public', express.static('public'))
+
 // Sanitize inputs para prevenir XSS
 app.use(sanitizeInputs)
 
