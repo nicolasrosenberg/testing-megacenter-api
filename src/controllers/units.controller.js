@@ -40,6 +40,7 @@ async function getUnitsGrouped(req, res) {
 	// Extract and normalize data
 	const unitTypesRaw = unitTypesResponse.data.Table;
 	const discountPlansRaw = discountsResponse.data.ConcessionPlans;
+	const concessionUnitTypesRaw = discountsResponse.data.ConcessionUnitTypes;
 
 	const unitTypes = Array.isArray(unitTypesRaw)
 		? unitTypesRaw
@@ -51,14 +52,24 @@ async function getUnitsGrouped(req, res) {
 		: discountPlansRaw
 			? [discountPlansRaw]
 			: [];
+	const concessionUnitTypes = Array.isArray(concessionUnitTypesRaw)
+		? concessionUnitTypesRaw
+		: concessionUnitTypesRaw
+			? [concessionUnitTypesRaw]
+			: [];
 
 	logInfo("UnitsController", "Data fetched", {
 		unitTypes: unitTypes.length,
 		discountPlans: discountPlans.length,
+		concessionUnitTypes: concessionUnitTypes.length,
 	});
 
 	// Aggregate and group units
-	const result = unitsAggregator.aggregateUnits(unitTypes, discountPlans);
+	const result = unitsAggregator.aggregateUnits(
+		unitTypes,
+		discountPlans,
+		concessionUnitTypes,
+	);
 
 	logInfo("UnitsController", "Groups created", {
 		totalGroups: result.length,

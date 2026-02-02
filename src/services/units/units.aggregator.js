@@ -141,9 +141,14 @@ function buildUnitOption(unitTypeRaw, unitType, bestDiscount) {
  * Group units by dimension and type
  * @param {Array} availableUnitTypes - Raw unit types with availability
  * @param {Map} discountsMap - Map of available discounts
+ * @param {object} restrictionsMap - Map of discount restrictions
  * @returns {object} Groups object keyed by groupKey
  */
-function groupUnitsByDimension(availableUnitTypes, discountsMap) {
+function groupUnitsByDimension(
+	availableUnitTypes,
+	discountsMap,
+	restrictionsMap,
+) {
 	const groups = {};
 
 	availableUnitTypes.forEach((unitTypeRaw) => {
@@ -163,8 +168,27 @@ function groupUnitsByDimension(availableUnitTypes, discountsMap) {
 			};
 		}
 
+		// Find applicable discounts for this unit
+		const applicableDiscounts = [];
+		discountsMap.forEach((discount) => {
+			if (
+				discountsService.discountAppliesToUnit(
+					discount.concessionId,
+					unitType.unitTypeId,
+					unitType.width,
+					unitType.length,
+					restrictionsMap,
+				)
+			) {
+				applicableDiscounts.push(discount);
+			}
+		});
+
 		// Get best discount
-		const bestDiscount = discountsMap.get(unitType.concessionId);
+		const bestDiscount = findBestDiscount(
+			applicableDiscounts,
+			unitType.pricing.web,
+		);
 
 		// Create option
 		const option = buildUnitOption(unitTypeRaw, unitType, bestDiscount);
@@ -263,22 +287,31 @@ function processGroup(group) {
  * Main aggregation function: orchestrates the entire grouping process
  * @param {Array} unitTypes - Raw unit types from SiteLink
  * @param {Array} discountPlans - Raw discount plans from SiteLink
+ * @param {Array} concessionUnitTypes - Discount restrictions from SiteLink
  * @returns {Array} Grouped and processed units
  */
-function aggregateUnits(unitTypes, discountPlans) {
-	// Step 1: Process and filter discounts
+function aggregateUnits(unitTypes, discountPlans, concessionUnitTypes = []) {
+	// Step 1: Build discount restrictions map
+	const restrictionsMap =
+		discountsService.buildDiscountRestrictionsMap(concessionUnitTypes);
+
+	// Step 2: Process and filter discounts
 	const discountsMap = processDiscounts(discountPlans);
 
-	// Step 2: Filter unit types with availability
+	// Step 3: Filter unit types with availability
 	const availableUnitTypes = filterAvailableUnits(unitTypes);
 
-	// Step 3: Group by dimension + type
-	const groups = groupUnitsByDimension(availableUnitTypes, discountsMap);
+	// Step 4: Group by dimension + type
+	const groups = groupUnitsByDimension(
+		availableUnitTypes,
+		discountsMap,
+		restrictionsMap,
+	);
 
-	// Step 4: Process each group
+	// Step 5: Process each group
 	const result = Object.values(groups).map(processGroup);
 
-	// Step 5: Sort by area, then type name
+	// Step 6: Sort by area, then type name
 	result.sort((a, b) => {
 		if (a.area !== b.area) {
 			return a.area - b.area;

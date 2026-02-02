@@ -8,6 +8,7 @@ const unitsHelper = require("../units/units.helper");
 const costService = require("../sitelink/cost.service");
 const tenantService = require("../tenant/tenant.service");
 const insuranceService = require("../insurance/insurance.service");
+const mailingService = require("../mailing/resend");
 const client = require("../shared/client");
 const { logInfo, logError } = require("../../middleware/logger");
 const { ValidationError, NotFoundError } = require("../../utils/errors");
@@ -480,6 +481,64 @@ async function processMoveIn(data, locationCode) {
 		tenantId: tenantResult.tenantId,
 		ledgerId: moveInResult.ledgerId,
 	});
+
+	// Step 7: Send move-in confirmation email
+	try {
+		// Format dates for email
+		const moveInDateFormatted = new Date(firstCharge.startDate).toLocaleDateString("en-US", {
+			month: "short",
+			day: "numeric",
+			year: "numeric",
+		});
+
+		// Calculate periods
+		const rentStartDate = new Date(firstCharge.startDate);
+		const rentEndDate = new Date(firstCharge.endDate);
+		const rentPeriod = `${rentStartDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })} - ${rentEndDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+
+		// Find insurance charge for period
+		const insuranceCharge = costResult.charges.find(c => c.description && c.description.toLowerCase().includes("insurance"));
+		const insurancePeriod = insuranceCharge ?
+			`${new Date(insuranceCharge.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })} - ${new Date(insuranceCharge.endDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` :
+			rentPeriod;
+
+		// Find charges breakdown
+		const rentCharge = costResult.charges.find(c => c.description && c.description.toLowerCase().includes("rent"));
+		const adminCharge = costResult.charges.find(c => c.description && c.description.toLowerCase().includes("admin"));
+
+		await mailingService.sendMoveInConfirmation(
+			{
+				email: data.tenantEmail,
+				firstName: data.tenantFirstName,
+				lastName: data.tenantLastName,
+				leaseNumber: moveInResult.leaseNumber,
+				unitName: unitInfo.unitName || unitInfo.name,
+				gateCode: tenantResult.accessCode,
+				unitType: unitInfo.typeName || unitInfo.type,
+				unitSize: unitInfo.dimensions || `${unitInfo.width}' x ${unitInfo.length}'`,
+				moveInDate: moveInDateFormatted,
+				eSignUrl,
+				totalPaid: costResult.summary.totalDueAtMoveIn.toFixed(2),
+				firstMonthRent: (rentCharge?.amount || 0).toFixed(2),
+				adminFee: (adminCharge?.amount || 0).toFixed(2),
+				firstMonthInsurance: (insuranceCharge?.amount || 0).toFixed(2),
+				rentPeriod,
+				insurancePeriod,
+			},
+			locationCode,
+		);
+
+		logInfo("MoveInService", "Move-in confirmation email sent", {
+			email: data.tenantEmail,
+			leaseNumber: moveInResult.leaseNumber,
+		});
+	} catch (emailError) {
+		// Log but don't fail the move-in if email fails
+		logError("MoveInService", "Failed to send move-in confirmation email", {
+			error: emailError.message,
+			leaseNumber: moveInResult.leaseNumber,
+		});
+	}
 
 	return {
 		ledgerId: moveInResult.ledgerId,
